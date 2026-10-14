@@ -1,0 +1,39 @@
+{
+  "manifest_version": 3,
+  "name": "103FM Speed",
+  "version": "1.0",
+  "description": "השמעת תוכניות 103FM במהירות מותאמת (ברירת מחדל 1.5x)",
+  "permissions": [
+    "storage"
+  ],
+  "host_permissions": [
+    "*://*.maariv.co.il/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.maariv.co.il/*"
+      ],
+      "js": [
+        "bridge.js"
+      ],
+      "all_frames": true,
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "*://*.maariv.co.il/*"
+      ],
+      "js": [
+        "content.js"
+      ],
+      "all_frames": true,
+      "run_at": "document_start",
+      "world": "MAIN"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "103FM Speed"
+  }
+}
