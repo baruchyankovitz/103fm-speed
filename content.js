@@ -60,7 +60,14 @@
     el.addEventListener('ended', () => { const db = load(); delete db[idOf(el)]; save(db); });
   }
 
-  // ---- דילוג קדימה/אחורה מהמקלדת ----
+  // ---- שולחים את הזמן לסרגל (לחישוב "נותרו") ----
+  setInterval(() => {
+    const el = [...known].find(a => !a.paused && isContent(a)) || [...known].find(isContent);
+    if (el) document.dispatchEvent(new CustomEvent('fm-time',
+      { detail: JSON.stringify({ cur: el.currentTime, dur: el.duration }) }));
+  }, 1000);
+
+  // ---- דילוג קדימה/אחורה ----
   document.addEventListener('fm-seek', e => {
     const el = [...known].find(a => !a.paused && isContent(a)) || [...known].find(isContent);
     if (el) el.currentTime = Math.max(0, Math.min(el.duration - 1, el.currentTime + e.detail));
