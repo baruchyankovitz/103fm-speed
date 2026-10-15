@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "מאיץ השמעה ל־103FM",
-  "version": "1.2",
+  "version": "1.3",
   "description": "השמעת תוכניות 103FM במהירות מותאמת, עם קיצורי מקלדת וזכירת מיקום",
   "permissions": [
     "storage"

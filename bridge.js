@@ -19,8 +19,8 @@ const togglePlay = () => document.querySelector('.mouthjs-playbutton')?.click();
 
 // ---- סרגל שליטה מודרני מתחת לנגן ----
 const ICON = {
-  back: '<svg viewBox="0 0 24 24"><path d="M12 5V2L7 6l5 4V7a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z"/><text x="12" y="16.5" text-anchor="middle">15</text></svg>',
-  fwd:  '<svg viewBox="0 0 24 24"><path d="M12 5V2l5 4-5 4V7a6 6 0 1 0 6 6h2a8 8 0 1 1-8-8z"/><text x="12" y="16.5" text-anchor="middle">15</text></svg>'
+  back: '<svg viewBox="0 0 24 24"><path d="M12 5V2L7 6l5 4V7a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z"/><text x="12" y="16.5" text-anchor="middle">10</text></svg>',
+  fwd:  '<svg viewBox="0 0 24 24"><path d="M12 5V2l5 4-5 4V7a6 6 0 1 0 6 6h2a8 8 0 1 1-8-8z"/><text x="12" y="16.5" text-anchor="middle">10</text></svg>'
 };
 let bar, speedBtns = [], timeEl;
 
@@ -30,8 +30,8 @@ function build() {
   bar.dir = 'rtl';
   bar.innerHTML = `
     <div class="fm-group fm-skip">
-      <button class="fm-icon" data-act="back" title="15 שניות אחורה (←)">${ICON.back}</button>
-      <button class="fm-icon" data-act="fwd" title="15 שניות קדימה (→)">${ICON.fwd}</button>
+      <button class="fm-icon" data-act="back" title="10 שניות אחורה (←)">${ICON.back}</button>
+      <button class="fm-icon" data-act="fwd" title="10 שניות קדימה (→)">${ICON.fwd}</button>
     </div>
     <div class="fm-group fm-speeds" role="radiogroup" aria-label="מהירות השמעה">
       <span class="fm-label">מהירות</span>
@@ -43,8 +43,8 @@ function build() {
     if (!b) return;
     e.preventDefault(); e.stopPropagation();
     if (b.dataset.speed) setRate(parseFloat(b.dataset.speed));
-    else if (b.dataset.act === 'back') seek(-15);
-    else if (b.dataset.act === 'fwd') seek(15);
+    else if (b.dataset.act === 'back') seek(-10);
+    else if (b.dataset.act === 'fwd') seek(10);
   });
   speedBtns = [...bar.querySelectorAll('.fm-speed')];
   timeEl = bar.querySelector('.fm-time');
@@ -106,8 +106,8 @@ document.addEventListener('keydown', e => {
   let handled = true;
   if (e.shiftKey && (e.key === '>' || e.code === 'Period')) step(+1);
   else if (e.shiftKey && (e.key === '<' || e.code === 'Comma')) step(-1);
-  else if (!e.shiftKey && e.key === 'ArrowRight') seek(15);
-  else if (!e.shiftKey && e.key === 'ArrowLeft') seek(-15);
+  else if (!e.shiftKey && e.key === 'ArrowRight') seek(10);
+  else if (!e.shiftKey && e.key === 'ArrowLeft') seek(-10);
   else if (e.code === 'Space' && document.querySelector('.mouthjs-playbutton')) togglePlay();
   else handled = false;
   if (handled) { e.preventDefault(); e.stopPropagation(); }
