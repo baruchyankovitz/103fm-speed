@@ -7,7 +7,7 @@ chrome.storage.sync.get({ rate: 1.5 }, ({ rate }) => {
     if (s === rate) b.className = 'on';
     b.onclick = () => {
       chrome.storage.sync.set({ rate: s });
-      g.querySelectorAll('button').forEach(x => x.className = '');
+      g.querySelectorAll('button').forEach(x => (x.className = ''));
       b.className = 'on';
     };
     g.appendChild(b);

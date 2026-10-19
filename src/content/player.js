@@ -1,36 +1,49 @@
-// נגן מודרני לאתרי רדיו — רץ בעולם הדף. ב־103FM מחליף את הנגן המקורי, בשאר האתרים מוצג כנגן צף
+// Modern player for radio sites. Runs in the page world. On 103FM it replaces the original player; on other sites it is shown as a floating player
 (() => {
-  if (window.top !== window) return; // רק בחלון הראשי, לא ב-iframes
+  if (window.top !== window) return; // Main window only, not iframes
   const $ = (s, r = document) => r.querySelector(s);
   const FM = () => window.__fm;
   const site = FM()?.site || {};
   const floating = !site.inline && !site.dock && !site.bar;
   const PRESETS = [1, 1.25, 1.5, 1.75, 2, 2.5, 3];
 
-  // ---------- עזרים ----------
+  // ---------- Helpers ----------
   const fmt = s => {
     if (!isFinite(s)) return '--:--';
     s = Math.max(0, Math.floor(s));
-    const h = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), ss = String(s % 60).padStart(2, '0');
+    const h = Math.floor(s / 3600),
+      m = Math.floor((s % 3600) / 60),
+      ss = String(s % 60).padStart(2, '0');
     return h ? `${h}:${String(m).padStart(2, '0')}:${ss}` : `${String(m).padStart(2, '0')}:${ss}`;
   };
-  const parseT = t => { // "12:30" / "1:02:03" / "750"
+  const parseT = t => {
+    // "12:30" / "1:02:03" / "750"
     if (!t) return NaN;
     if (/^\d+(\.\d+)?$/.test(t)) return +t;
     return t.split(':').reduce((a, v) => a * 60 + +v, 0);
   };
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
-  const store = (k, v) => { try { return v === undefined ? localStorage.getItem(k) : localStorage.setItem(k, v); } catch {} };
+  const store = (k, v) => {
+    try {
+      return v === undefined ? localStorage.getItem(k) : localStorage.setItem(k, v);
+    } catch {}
+  };
   const rate = () => FM()?.rate() || 1.5;
   const audio = () => FM()?.audio();
   const siteBtn = () => site.btn && $(site.btn);
   const title = () => ((site.title && $(site.title)?.textContent) || document.title).trim();
-  const siteDuration = () => site.duration ? parseT($(site.duration)?.textContent.trim()) : NaN;
-  const dur = () => { const a = audio(); return a && isFinite(a.duration) ? a.duration : siteDuration(); };
+  const siteDuration = () => (site.duration ? parseT($(site.duration)?.textContent.trim()) : NaN);
+  const dur = () => {
+    const a = audio();
+    return a && isFinite(a.duration) ? a.duration : siteDuration();
+  };
   const cur = () => audio()?.currentTime || 0;
-  const playing = () => { const a = audio(); return FM()?.ad() ? true : a ? !a.paused : siteBtn()?.classList.contains('playing'); };
+  const playing = () => {
+    const a = audio();
+    return FM()?.ad() ? true : a ? !a.paused : siteBtn()?.classList.contains('playing');
+  };
   const toast = t => document.dispatchEvent(new CustomEvent('fm-toast', { detail: t }));
-  const rng = (a, b) => '\u2066' + fmt(a) + (b ? '–' + fmt(b) : '') + '\u2069'; // טווח זמנים שלא מתהפך בעברית
+  const rng = (a, b) => '\u2066' + fmt(a) + (b ? '–' + fmt(b) : '') + '\u2069'; // Time range that does not flip in RTL text
 
   function setRate(r) {
     r = Math.round(clamp(r, 0.5, 3) * 100) / 100;
@@ -40,13 +53,23 @@
     update();
   }
   function togglePlay() {
-    // הכפתור של האתר לא שולט בפרסומת, אז עוצרים וממשיכים אותה ישירות
-    const ad = FM()?.ad(), pausedAd = FM()?.pausedAd?.();
-    if (ad) { ad.pause(); return; }
-    if (pausedAd) { pausedAd.play().catch(() => {}); return; }
+    // The site's button does not control the ad, so pause and resume it directly
+    const ad = FM()?.ad(),
+      pausedAd = FM()?.pausedAd?.();
+    if (ad) {
+      ad.pause();
+      return;
+    }
+    if (pausedAd) {
+      pausedAd.play().catch(() => {});
+      return;
+    }
     const b = siteBtn();
     if (b) b.click();
-    else { const a = audio(); if (a) a.paused ? a.play() : a.pause(); }
+    else {
+      const a = audio();
+      if (a) a.paused ? a.play() : a.pause();
+    }
   }
   function pause() {
     const ad = FM()?.ad();
@@ -55,34 +78,46 @@
   }
   function seekTo(t, quiet) {
     const a = audio();
-    if (!a || FM()?.ad()) { if (!quiet) toast('לחצו קודם על השמעה'); return; }
+    if (!a || FM()?.ad()) {
+      if (!quiet) toast('לחצו קודם על השמעה');
+      return;
+    }
     a.currentTime = clamp(t, 0, Math.max(0, a.duration - 0.25));
     update();
   }
-  const skip = s => { seekTo(cur() + s, true); toast((s > 0 ? '+' : '−') + Math.abs(s) + ' שנ׳'); };
+  const skip = s => {
+    seekTo(cur() + s, true);
+    toast((s > 0 ? '+' : '−') + Math.abs(s) + ' שנ׳');
+  };
 
-  // ---------- אייקונים ----------
+  // ---------- Icons ----------
   const I = {
     play: '<svg viewBox="0 0 24 24"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.5-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>',
-    pause: '<svg viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg>',
-    start: '<svg viewBox="0 0 24 24"><rect x="5" y="5" width="2.4" height="14" rx="1"/><path d="M19 6.2v11.6a.8.8 0 0 1-1.25.66L9.4 12.66a.8.8 0 0 1 0-1.32l8.35-5.8A.8.8 0 0 1 19 6.2z"/></svg>',
+    pause:
+      '<svg viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1.2"/><rect x="14" y="5" width="4" height="14" rx="1.2"/></svg>',
+    start:
+      '<svg viewBox="0 0 24 24"><rect x="5" y="5" width="2.4" height="14" rx="1"/><path d="M19 6.2v11.6a.8.8 0 0 1-1.25.66L9.4 12.66a.8.8 0 0 1 0-1.32l8.35-5.8A.8.8 0 0 1 19 6.2z"/></svg>',
     end: '<svg viewBox="0 0 24 24"><rect x="16.6" y="5" width="2.4" height="14" rx="1"/><path d="M5 6.2v11.6a.8.8 0 0 0 1.25.66l8.35-5.8a.8.8 0 0 0 0-1.32L6.25 5.54A.8.8 0 0 0 5 6.2z"/></svg>',
-    back: n => `<svg viewBox="0 0 24 24"><path d="M12 5V2L7 6l5 4V7a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z"/><text x="12" y="16.3" text-anchor="middle">${n}</text></svg>`,
-    fwd: n => `<svg viewBox="0 0 24 24"><path d="M12 5V2l5 4-5 4V7a6 6 0 1 0 6 6h2a8 8 0 1 1-8-8z"/><text x="12" y="16.3" text-anchor="middle">${n}</text></svg>`,
+    back: n =>
+      `<svg viewBox="0 0 24 24"><path d="M12 5V2L7 6l5 4V7a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z"/><text x="12" y="16.3" text-anchor="middle">${n}</text></svg>`,
+    fwd: n =>
+      `<svg viewBox="0 0 24 24"><path d="M12 5V2l5 4-5 4V7a6 6 0 1 0 6 6h2a8 8 0 1 1-8-8z"/><text x="12" y="16.3" text-anchor="middle">${n}</text></svg>`,
     vol: '<svg viewBox="0 0 24 24"><path d="M4 9.5v5a1 1 0 0 0 1 1h3l4.3 3.6a.8.8 0 0 0 1.3-.6V5.5a.8.8 0 0 0-1.3-.6L8 8.5H5a1 1 0 0 0-1 1z"/><path d="M16.5 8.5a5 5 0 0 1 0 7M18.8 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
     mute: '<svg viewBox="0 0 24 24"><path d="M4 9.5v5a1 1 0 0 0 1 1h3l4.3 3.6a.8.8 0 0 0 1.3-.6V5.5a.8.8 0 0 0-1.3-.6L8 8.5H5a1 1 0 0 0-1 1z"/><path d="M16.5 9.5l5 5m0-5l-5 5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
     moon: '<svg viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>',
-    share: '<svg viewBox="0 0 24 24"><circle cx="18" cy="5.5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="18.5" r="2.5"/><path d="M8.2 10.8l7.6-4.1M8.2 13.2l7.6 4.1" stroke="currentColor" stroke-width="1.8"/></svg>',
+    share:
+      '<svg viewBox="0 0 24 24"><circle cx="18" cy="5.5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="18.5" r="2.5"/><path d="M8.2 10.8l7.6-4.1M8.2 13.2l7.6 4.1" stroke="currentColor" stroke-width="1.8"/></svg>',
     pip: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="11.5" y="11" width="7.5" height="6" rx="1.2"/></svg>',
     chev: '<svg viewBox="0 0 24 24"><path d="M6 9.5l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
-    close: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
+    close:
+      '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
     keys: '<svg viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M6 10h1.5M9.5 10H11M13 10h1.5M16.5 10H18M8 14h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>'
   };
 
-  // גל קול דקורטיבי (קבוע לכל תוכנית)
+  // Decorative waveform (constant for every show)
   function wave(n = 140) {
-    let seed = [...location.pathname + location.search].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
-    const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32);
+    let seed = [...(location.pathname + location.search)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+    const rnd = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32;
     let out = '';
     for (let i = 0; i < n; i++) {
       const h = 18 + Math.round((Math.sin(i / 5) * 0.25 + 0.75) * rnd() * 72);
@@ -92,7 +127,7 @@
   }
   const WAVE = wave();
 
-  // ---------- תבניות ----------
+  // ---------- Templates ----------
   const seekHTML = `
     <div class="fm-seek" data-role="seek" dir="ltr">
       <div class="fm-wave fm-wave-base">${WAVE}</div>
@@ -212,19 +247,26 @@
       <button class="fm-chip" data-act="help">סגירה</button>
     </div>`;
 
-  // ---------- מצב ----------
-  const roots = new Set();       // כל המופעים של הממשק (ראשי, מיני, חלון צף)
-  let main, mini, help, dockHost = null, pipWin = null, miniDismissed = false, mainVisible = true;
-  let sleep = null;              // {until} או {end:true}
-  let clipStop = null;           // עצירה אוטומטית בסוף קטע משותף
-  let dragging = null;           // {root, ratio}
+  // ---------- State ----------
+  const roots = new Set(); // All UI instances (main, mini, floating window)
+  let main,
+    mini,
+    help,
+    dockHost = null,
+    pipWin = null,
+    miniDismissed = false,
+    mainVisible = true;
+  let sleep = null; // {until} or {end:true}
+  let clipStop = null; // Auto-stop at the end of a shared clip
+  let dragging = null; // {root, ratio}
   let savedVol = null;
 
-  // ---------- קישור לקטע (#fm=start-end) ----------
+  // ---------- Clip link (#fm=start-end) ----------
   const hashClip = (() => {
     const m = location.hash.match(/fm=([\d:.]+)(?:-([\d:.]+))?/);
     if (!m) return null;
-    const a = parseT(m[1]), b = parseT(m[2]);
+    const a = parseT(m[1]),
+      b = parseT(m[2]);
     return isFinite(a) ? { a, b: isFinite(b) && b > a ? b : null } : null;
   })();
   if (hashClip) window.__fmPendingClip = hashClip;
@@ -243,34 +285,43 @@
     return `${base}#fm=${Math.floor(a)}${b ? '-' + Math.floor(b) : ''}`;
   }
 
-  // ---------- בנייה ----------
+  // ---------- Build ----------
   function mountMain() {
     if (main && document.contains(main)) return;
-    if (main) roots.delete(main); // האתר בנה מחדש את הנגן שלו — מרכיבים שוב
+    if (main) roots.delete(main); // The site rebuilt its player, so mount again
     main = document.createElement('div');
     main.className = 'fm-player';
     main.dir = 'rtl';
     main.innerHTML = mainHTML;
     main.classList.toggle('fm-noshare', site.share === false);
     if (site.dock) {
-      // מובנה בתוך הסרגל הקבוע של האתר ומחליף את הממשק שלו כשמתנגנת תוכנית מוקלטת
+      // Built into the site's fixed bar and replaces its UI while a recorded show plays
       dockHost = $(site.dock);
-      if (!dockHost) { main = null; return; }
+      if (!dockHost) {
+        main = null;
+        return;
+      }
       main.classList.add('fm-dock');
       main.classList.toggle('fm-pop-up', !!site.popUp);
       main.hidden = true;
       dockHost.appendChild(main);
     } else if (site.bar) {
-      // סרגל קבוע בתחתית המסך שתופס מקום בדף במקום להסתיר אותו
-      if (!document.body) { main = null; return; }
+      // Fixed bar at the bottom of the screen that takes up page space instead of covering it
+      if (!document.body) {
+        main = null;
+        return;
+      }
       main.classList.add('fm-dock', 'fm-fixed', 'fm-pop-up');
       main.classList.toggle('fm-slim', store('fm-slim') === '1');
       main.hidden = true;
       document.body.appendChild(main);
       new ResizeObserver(reserveSpace).observe(main);
     } else if (floating) {
-      // נגן צף בפינה — מופיע רק כשמתנגנת תוכנית מוקלטת
-      if (!document.body) { main = null; return; }
+      // Floating player in the corner, shown only while a recorded show plays
+      if (!document.body) {
+        main = null;
+        return;
+      }
       main.classList.add('fm-float');
       main.classList.toggle('fm-collapsed', store('fm-collapsed') === '1');
       main.style.setProperty('--fm-bottom', (site.bottom ?? 20) + 'px');
@@ -278,16 +329,29 @@
       document.body.appendChild(main);
     } else {
       const player = $(site.inline);
-      if (!player || !siteBtn()) { main = null; return; }
+      if (!player || !siteBtn()) {
+        main = null;
+        return;
+      }
       player.classList.add('fm-enhanced');
-      $('.fm-bar', player)?.remove(); // הסרגל מגרסה קודמת
+      $('.fm-bar', player)?.remove(); // Bar from a previous version
       player.appendChild(main);
     }
     wire(main);
-    // בנגן מובנה בסרגל קבוע או צף אין צורך במיני-נגן: הנגן עצמו תמיד על המסך
-    if (site.inline) new IntersectionObserver(([e]) => { mainVisible = e.isIntersecting; update(); }, { threshold: 0 }).observe(main);
+    // A player built into a fixed bar or floating needs no mini player: it is always on screen
+    if (site.inline)
+      new IntersectionObserver(
+        ([e]) => {
+          mainVisible = e.isIntersecting;
+          update();
+        },
+        { threshold: 0 }
+      ).observe(main);
     if (hashClip) setBanner(`קטע משותף: ${rng(hashClip.a, hashClip.b)} · לחצו על השמעה`);
-    if (mini) { update(); return; } // הרכבה חוזרת: המיני-נגן והעזרה כבר קיימים
+    if (mini) {
+      update();
+      return;
+    } // Remount: the mini player and help already exist
 
     mini = document.createElement('div');
     mini.className = 'fm-miniplayer';
@@ -301,13 +365,15 @@
     help.dir = 'rtl';
     help.hidden = true;
     help.innerHTML = helpHTML;
-    help.addEventListener('click', e => { if (e.target === help || e.target.closest('[data-act="help"]')) toggleHelp(false); });
+    help.addEventListener('click', e => {
+      if (e.target === help || e.target.closest('[data-act="help"]')) toggleHelp(false);
+    });
     document.body.appendChild(help);
     setupMediaSession();
     update();
   }
 
-  // מוסיף לדף ריווח בגובה הסרגל, כדי שלא יסתיר את התוכן שבתחתית
+  // Adds page spacing the height of the bar so it does not cover the content at the bottom
   function reserveSpace() {
     if (!document.body || !main) return;
     const h = main.hidden ? 0 : main.offsetHeight;
@@ -327,26 +393,46 @@
     root.addEventListener('click', e => {
       const b = e.target.closest('[data-act]');
       if (!b || !root.contains(b)) return;
-      e.preventDefault(); e.stopPropagation();
+      e.preventDefault();
+      e.stopPropagation();
       act(b.dataset.act, b.dataset.v, root);
     });
     const vol = $('[data-role="vol"]', root);
-    vol?.addEventListener('input', () => { const a = audio(); if (a) { a.volume = +vol.value; a.muted = false; } update(); });
+    vol?.addEventListener('input', () => {
+      const a = audio();
+      if (a) {
+        a.volume = +vol.value;
+        a.muted = false;
+      }
+      update();
+    });
     const rr = $('[data-role="rate-range"]', root);
     rr?.addEventListener('input', () => setRate(+rr.value));
-    root.querySelectorAll('[data-role="clip-a"],[data-role="clip-b"]').forEach(i => i.addEventListener('keydown', e => e.stopPropagation()));
+    root
+      .querySelectorAll('[data-role="clip-a"],[data-role="clip-b"]')
+      .forEach(i => i.addEventListener('keydown', e => e.stopPropagation()));
 
-    // גרירה על פס ההתקדמות
+    // Drag on the progress bar
     const seek = $('[data-role="seek"]', root);
-    const ratioAt = ev => { const r = seek.getBoundingClientRect(); return clamp((ev.clientX - r.left) / r.width, 0, 1); };
+    const ratioAt = ev => {
+      const r = seek.getBoundingClientRect();
+      return clamp((ev.clientX - r.left) / r.width, 0, 1);
+    };
     seek.addEventListener('pointermove', ev => {
-      const tip = $('[data-role="tip"]', root), r = ratioAt(ev);
+      const tip = $('[data-role="tip"]', root),
+        r = ratioAt(ev);
       tip.textContent = fmt(r * dur());
       tip.style.left = r * 100 + '%';
-      if (dragging?.root === root) { dragging.ratio = r; update(); }
+      if (dragging?.root === root) {
+        dragging.ratio = r;
+        update();
+      }
     });
     seek.addEventListener('pointerdown', ev => {
-      if (!audio()) { toast('לחצו קודם על השמעה'); return; }
+      if (!audio()) {
+        toast('לחצו קודם על השמעה');
+        return;
+      }
       seek.setPointerCapture(ev.pointerId);
       dragging = { root, ratio: ratioAt(ev) };
       root.classList.add('fm-dragging');
@@ -363,14 +449,17 @@
   }
 
   function closePops(root, except) {
-    (root.ownerDocument || document).querySelectorAll('.fm-pop').forEach(p => { if (p !== except) p.hidden = true; });
+    (root.ownerDocument || document).querySelectorAll('.fm-pop').forEach(p => {
+      if (p !== except) p.hidden = true;
+    });
   }
   function togglePop(root, name) {
     const p = $(`[data-pop="${name}"]`, root);
     closePops(root, p);
     p.hidden = !p.hidden;
     if (name === 'share' && !p.hidden) {
-      const ia = $('[data-role="clip-a"]', root), ib = $('[data-role="clip-b"]', root);
+      const ia = $('[data-role="clip-a"]', root),
+        ib = $('[data-role="clip-b"]', root);
       if (!ia.value) ia.value = fmt(cur());
       if (!ib.value) ib.value = '';
     }
@@ -378,31 +467,71 @@
 
   function act(a, v, root) {
     switch (a) {
-      case 'play': togglePlay(); break;
-      case 'skip': skip(+v); break;
-      case 'start': seekTo(0); toast('להתחלה'); break;
-      case 'end': seekTo(dur() - 1); toast('לסוף'); break;
-      case 'speed-pop': togglePop(root, 'speed'); break;
-      case 'rate': setRate(+v); break;
-      case 'rate-step': setRate(rate() + +v); break;
+      case 'play':
+        togglePlay();
+        break;
+      case 'skip':
+        skip(+v);
+        break;
+      case 'start':
+        seekTo(0);
+        toast('להתחלה');
+        break;
+      case 'end':
+        seekTo(dur() - 1);
+        toast('לסוף');
+        break;
+      case 'speed-pop':
+        togglePop(root, 'speed');
+        break;
+      case 'rate':
+        setRate(+v);
+        break;
+      case 'rate-step':
+        setRate(rate() + +v);
+        break;
       case 'mute': {
         const au = audio();
-        if (au) { au.muted = !au.muted; toast(au.muted ? 'מושתק' : 'קול פעיל'); }
+        if (au) {
+          au.muted = !au.muted;
+          toast(au.muted ? 'מושתק' : 'קול פעיל');
+        }
         break;
       }
-      case 'sleep-pop': togglePop(root, 'sleep'); break;
+      case 'sleep-pop':
+        togglePop(root, 'sleep');
+        break;
       case 'sleep':
-        if (v === '0') { sleep = null; toast('טיימר שינה בוטל'); }
-        else if (v === 'end') { sleep = { end: true }; toast('ייעצר בסוף התוכנית'); }
-        else { sleep = { until: Date.now() + v * 60000 }; toast(`ייעצר בעוד ${v} דקות`); }
+        if (v === '0') {
+          sleep = null;
+          toast('טיימר שינה בוטל');
+        } else if (v === 'end') {
+          sleep = { end: true };
+          toast('ייעצר בסוף התוכנית');
+        } else {
+          sleep = { until: Date.now() + v * 60000 };
+          toast(`ייעצר בעוד ${v} דקות`);
+        }
         closePops(root);
         break;
-      case 'share-pop': togglePop(root, 'share'); break;
-      case 'clip-a': $('[data-role="clip-a"]', root).value = fmt(cur()); break;
-      case 'clip-b': $('[data-role="clip-b"]', root).value = fmt(cur()); break;
-      case 'share': share(v, root); break;
-      case 'pip': openPip(); break;
-      case 'mini-close': miniDismissed = true; break;
+      case 'share-pop':
+        togglePop(root, 'share');
+        break;
+      case 'clip-a':
+        $('[data-role="clip-a"]', root).value = fmt(cur());
+        break;
+      case 'clip-b':
+        $('[data-role="clip-b"]', root).value = fmt(cur());
+        break;
+      case 'share':
+        share(v, root);
+        break;
+      case 'pip':
+        openPip();
+        break;
+      case 'mini-close':
+        miniDismissed = true;
+        break;
       case 'collapse': {
         const cls = site.bar ? 'fm-slim' : 'fm-collapsed';
         const c = main.classList.toggle(cls);
@@ -410,7 +539,9 @@
         closePops(root);
         break;
       }
-      case 'help': toggleHelp(); break;
+      case 'help':
+        toggleHelp();
+        break;
     }
     update();
   }
@@ -429,8 +560,12 @@
       x: `https://twitter.com/intent/tweet?text=${enc(text)}&url=${enc(url)}`
     };
     if (kind === 'copy') {
-      try { await navigator.clipboard.writeText(url); toast('הקישור הועתק'); }
-      catch { prompt('העתיקו את הקישור:', url); }
+      try {
+        await navigator.clipboard.writeText(url);
+        toast('הקישור הועתק');
+      } catch {
+        prompt('העתיקו את הקישור:', url);
+      }
     } else {
       window.open(links[kind], '_blank', 'noopener,width=620,height=560');
     }
@@ -441,13 +576,22 @@
     help.hidden = force === undefined ? !help.hidden : !force;
   }
 
-  // ---------- נגן צף (Document Picture-in-Picture) ----------
+  // ---------- Floating player (Document Picture-in-Picture) ----------
   async function openPip() {
-    if (pipWin) { pipWin.focus(); return; }
-    if (!('documentPictureInPicture' in window)) { toast('הדפדפן לא תומך בנגן צף'); return; }
+    if (pipWin) {
+      pipWin.focus();
+      return;
+    }
+    if (!('documentPictureInPicture' in window)) {
+      toast('הדפדפן לא תומך בנגן צף');
+      return;
+    }
     try {
       pipWin = await documentPictureInPicture.requestWindow({ width: 420, height: 132 });
-    } catch { toast('לא ניתן לפתוח נגן צף'); return; }
+    } catch {
+      toast('לא ניתן לפתוח נגן צף');
+      return;
+    }
     const d = pipWin.document;
     d.documentElement.dir = 'rtl';
     d.title = title();
@@ -464,35 +608,59 @@
     d.body.appendChild(box);
     wire(box);
     d.addEventListener('keydown', onKey, true);
-    pipWin.addEventListener('pagehide', () => { roots.delete(box); pipWin = null; update(); });
+    pipWin.addEventListener('pagehide', () => {
+      roots.delete(box);
+      pipWin = null;
+      update();
+    });
     update();
   }
 
-  // ---------- עדכון הממשק ----------
+  // ---------- UI update ----------
   function update() {
-    const a = audio(), ad = FM()?.ad();
-    const d = dur(), c = dragging ? dragging.ratio * d : cur();
+    const a = audio(),
+      ad = FM()?.ad();
+    const d = dur(),
+      c = dragging ? dragging.ratio * d : cur();
     const p = d ? clamp(c / d, 0, 1) : 0;
     const r = rate();
     const isPlay = playing();
     let buf = 0;
     if (a && a.buffered.length && d) buf = a.buffered.end(a.buffered.length - 1) / d;
     const left = d ? (d - c) / r : NaN;
-    const endAt = isFinite(left) ? new Date(Date.now() + left * 1000).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : '';
+    const endAt = isFinite(left)
+      ? new Date(Date.now() + left * 1000).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })
+      : '';
 
     for (const root of roots) {
       const q = s => root.querySelectorAll(`[data-role="${s}"]`);
-      q('played').forEach(e => e.style.clipPath = `inset(0 ${100 - p * 100}% 0 0)`);
-      q('buf').forEach(e => e.style.clipPath = `inset(0 ${100 - buf * 100}% 0 0)`);
-      q('head').forEach(e => e.style.left = p * 100 + '%');
-      q('cur').forEach(e => e.textContent = fmt(c));
-      q('dur').forEach(e => e.textContent = fmt(d));
-      q('rate').forEach(e => e.textContent = r + 'x');
-      q('title').forEach(e => e.textContent = title());
-      q('play-icon').forEach(e => { const want = isPlay ? 'pause' : 'play'; if (e.dataset.state !== want) { e.innerHTML = I[want]; e.dataset.state = want; } });
-      q('rate-range').forEach(e => { if (root.ownerDocument.activeElement !== e) e.value = r; });
-      q('vol').forEach(e => { if (a && root.ownerDocument.activeElement !== e) e.value = a.muted ? 0 : a.volume; });
-      q('vol-icon').forEach(e => { const want = a && (a.muted || a.volume === 0) ? 'mute' : 'vol'; if (e.dataset.state !== want) { e.innerHTML = I[want]; e.dataset.state = want; } });
+      q('played').forEach(e => (e.style.clipPath = `inset(0 ${100 - p * 100}% 0 0)`));
+      q('buf').forEach(e => (e.style.clipPath = `inset(0 ${100 - buf * 100}% 0 0)`));
+      q('head').forEach(e => (e.style.left = p * 100 + '%'));
+      q('cur').forEach(e => (e.textContent = fmt(c)));
+      q('dur').forEach(e => (e.textContent = fmt(d)));
+      q('rate').forEach(e => (e.textContent = r + 'x'));
+      q('title').forEach(e => (e.textContent = title()));
+      q('play-icon').forEach(e => {
+        const want = isPlay ? 'pause' : 'play';
+        if (e.dataset.state !== want) {
+          e.innerHTML = I[want];
+          e.dataset.state = want;
+        }
+      });
+      q('rate-range').forEach(e => {
+        if (root.ownerDocument.activeElement !== e) e.value = r;
+      });
+      q('vol').forEach(e => {
+        if (a && root.ownerDocument.activeElement !== e) e.value = a.muted ? 0 : a.volume;
+      });
+      q('vol-icon').forEach(e => {
+        const want = a && (a.muted || a.volume === 0) ? 'mute' : 'vol';
+        if (e.dataset.state !== want) {
+          e.innerHTML = I[want];
+          e.dataset.state = want;
+        }
+      });
       q('sleep-badge').forEach(e => {
         e.hidden = !sleep;
         e.textContent = sleep?.end ? 'סוף' : sleep ? Math.ceil((sleep.until - Date.now()) / 60000) + '′' : '';
@@ -500,49 +668,71 @@
       q('clip').forEach(e => {
         const c2 = clipStop && d ? clipStop : null;
         e.hidden = !c2;
-        if (c2) { const s = (c2 - (hashClip?.a || 0)); e.style.left = ((hashClip?.a || 0) / d * 100) + '%'; e.style.width = (s / d * 100) + '%'; }
+        if (c2) {
+          const s = c2 - (hashClip?.a || 0);
+          e.style.left = ((hashClip?.a || 0) / d) * 100 + '%';
+          e.style.width = (s / d) * 100 + '%';
+        }
       });
       root.querySelectorAll('[data-act="rate"]').forEach(b => b.classList.toggle('on', +b.dataset.v === r));
       root.classList.toggle('fm-ad', !!ad);
       root.classList.toggle('fm-is-playing', !!isPlay);
       q('status').forEach(e => {
-        e.innerHTML = ad ? '<span class="fm-ad-pill">פרסומת</span> התוכנית תתחיל מיד אחריה'
-          : FM()?.pausedAd?.() ? '<span class="fm-ad-pill">פרסומת</span> מושהית · לחצו על השמעה כדי להמשיך'
-          : isFinite(left) && a ? `נותרו <b>${fmt(left)}</b> במהירות ${r}x <span class="fm-dot">•</span> מסתיים ב־${endAt}` + (sleep ? ` <span class="fm-dot">•</span> טיימר שינה פעיל` : '')
-          : 'לחצו על השמעה כדי להתחיל';
+        e.innerHTML = ad
+          ? '<span class="fm-ad-pill">פרסומת</span> התוכנית תתחיל מיד אחריה'
+          : FM()?.pausedAd?.()
+            ? '<span class="fm-ad-pill">פרסומת</span> מושהית · לחצו על השמעה כדי להמשיך'
+            : isFinite(left) && a
+              ? `נותרו <b>${fmt(left)}</b> במהירות ${r}x <span class="fm-dot">•</span> מסתיים ב־${endAt}` +
+                (sleep ? ` <span class="fm-dot">•</span> טיימר שינה פעיל` : '')
+              : 'לחצו על השמעה כדי להתחיל';
       });
     }
     if (!site.inline && main) {
       const was = main.hidden;
-      main.hidden = !a && !ad; // בשידור חי נשאר הנגן של האתר
+      main.hidden = !a && !ad; // On a live broadcast the site's player stays
       if (site.bar && was !== main.hidden) reserveSpace();
     }
     if (dockHost) dockHost.classList.toggle('fm-docked', !!main && !main.hidden);
-    if (site.hide) document.querySelectorAll(site.hide).forEach(el => {
-      if (main && !main.hidden) el.style.setProperty('display', 'none', 'important');
-      else el.style.removeProperty('display');
-    });
+    if (site.hide)
+      document.querySelectorAll(site.hide).forEach(el => {
+        if (main && !main.hidden) el.style.setProperty('display', 'none', 'important');
+        else el.style.removeProperty('display');
+      });
     if (mini) mini.classList.toggle('show', !mainVisible && !!isPlay && !pipWin && !miniDismissed);
     if (mainVisible) miniDismissed = false;
     updateMediaSession(c, d, r, isPlay);
   }
 
-  // ---------- טיימר שינה ועצירה בסוף קטע ----------
+  // ---------- Sleep timer and stop at end of clip ----------
   function tick() {
     const a = audio();
     if (a && !a.paused) {
-      if (clipStop && a.currentTime >= clipStop) { clipStop = null; pause(); toast('סוף הקטע'); }
+      if (clipStop && a.currentTime >= clipStop) {
+        clipStop = null;
+        pause();
+        toast('סוף הקטע');
+      }
       if (sleep?.until) {
         const ms = sleep.until - Date.now();
-        if (ms <= 10000 && ms > 0) { if (savedVol == null) savedVol = a.volume; a.volume = savedVol * ms / 10000; }
-        if (ms <= 0) { pause(); a.volume = savedVol ?? a.volume; savedVol = null; sleep = null; toast('טיימר שינה: נעצר'); }
+        if (ms <= 10000 && ms > 0) {
+          if (savedVol == null) savedVol = a.volume;
+          a.volume = (savedVol * ms) / 10000;
+        }
+        if (ms <= 0) {
+          pause();
+          a.volume = savedVol ?? a.volume;
+          savedVol = null;
+          sleep = null;
+          toast('טיימר שינה: נעצר');
+        }
       }
     }
     if (sleep?.end && a && a.ended) sleep = null;
     update();
   }
 
-  // ---------- מקשי מדיה + הפקדים של כרום ----------
+  // ---------- Media keys + Chrome controls ----------
   let msTitle = '';
   function setMetadata() {
     const t = title();
@@ -550,15 +740,26 @@
     msTitle = t;
     const art = document.querySelector('meta[property="og:image"]')?.content;
     try {
-      navigator.mediaSession.metadata = new MediaMetadata({ title: t, artist: site.name || '', album: document.title, artwork: art ? [{ src: art, sizes: '512x512' }] : [] });
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: t,
+        artist: site.name || '',
+        album: document.title,
+        artwork: art ? [{ src: art, sizes: '512x512' }] : []
+      });
     } catch {}
   }
   function setupMediaSession() {
     if (!('mediaSession' in navigator)) return;
     const ms = navigator.mediaSession;
     setMetadata();
-    const h = (n, f) => { try { ms.setActionHandler(n, f); } catch {} };
-    h('play', () => { if (!playing()) togglePlay(); });
+    const h = (n, f) => {
+      try {
+        ms.setActionHandler(n, f);
+      } catch {}
+    };
+    h('play', () => {
+      if (!playing()) togglePlay();
+    });
     h('pause', () => pause());
     h('seekbackward', e => skip(-(e.seekOffset || 10)));
     h('seekforward', e => skip(e.seekOffset || 10));
@@ -570,56 +771,75 @@
   function updateMediaSession(c, d, r, isPlay) {
     if (!('mediaSession' in navigator) || !audio() || Date.now() - msLast < 1000) return;
     msLast = Date.now();
-    setMetadata(); // באתרים שמחליפים תוכנית בלי לטעון דף מחדש
+    setMetadata(); // On sites that switch shows without reloading the page
     try {
       navigator.mediaSession.playbackState = isPlay ? 'playing' : 'paused';
-      if (isFinite(d) && d > 0) navigator.mediaSession.setPositionState({ duration: d, position: clamp(c, 0, d), playbackRate: r });
+      if (isFinite(d) && d > 0)
+        navigator.mediaSession.setPositionState({ duration: d, position: clamp(c, 0, d), playbackRate: r });
     } catch {}
   }
 
-  // ---------- מקלדת ----------
+  // ---------- Keyboard ----------
   function onKey(e) {
     const t = e.target;
-    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) && t.type !== 'range')) return;
+    if (t && (t.isContentEditable || (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) && t.type !== 'range'))) return;
     if (e.ctrlKey || e.metaKey || e.altKey) return;
-    if (!main || main.hidden) return; // בנגן הצף: מקשים פעילים רק כשמתנגנת תוכנית
+    if (!main || main.hidden) return; // In the floating player: keys are active only while a show is playing
     let ok = true;
-    if (e.key === 'Escape') { toggleHelp(false); roots.forEach(r => closePops(r)); }
-    else if (e.code === 'Space') togglePlay();
+    if (e.key === 'Escape') {
+      toggleHelp(false);
+      roots.forEach(r => closePops(r));
+    } else if (e.code === 'Space') togglePlay();
     else if (e.key === 'ArrowRight') skip(e.shiftKey ? 30 : 10);
     else if (e.key === 'ArrowLeft') skip(e.shiftKey ? -30 : -10);
-    else if (e.key === 'Home') { seekTo(0); toast('להתחלה'); }
-    else if (e.key === 'End') { seekTo(dur() - 1); toast('לסוף'); }
-    else if (e.shiftKey && (e.key === '>' || e.code === 'Period')) setRate(rate() + 0.25);
+    else if (e.key === 'Home') {
+      seekTo(0);
+      toast('להתחלה');
+    } else if (e.key === 'End') {
+      seekTo(dur() - 1);
+      toast('לסוף');
+    } else if (e.shiftKey && (e.key === '>' || e.code === 'Period')) setRate(rate() + 0.25);
     else if (e.shiftKey && (e.key === '<' || e.code === 'Comma')) setRate(rate() - 0.25);
     else if (e.code === 'KeyM') act('mute');
     else if (e.code === 'KeyP') openPip();
     else if (e.key === '?' || (e.shiftKey && e.code === 'Slash')) toggleHelp();
     else ok = false;
-    if (ok) { e.preventDefault(); e.stopPropagation(); update(); }
+    if (ok) {
+      e.preventDefault();
+      e.stopPropagation();
+      update();
+    }
   }
   document.addEventListener('keydown', onKey, true);
-  document.addEventListener('click', e => { if (!e.target.closest?.('.fm-pop-wrap')) roots.forEach(r => closePops(r)); });
+  document.addEventListener('click', e => {
+    if (!e.target.closest?.('.fm-pop-wrap')) roots.forEach(r => closePops(r));
+  });
 
-  // ---------- הודעה קופצת ----------
+  // ---------- Toast ----------
   let toastEl, toastT;
   document.addEventListener('fm-toast', e => {
     if (!document.body) return;
-    if (!toastEl) { toastEl = document.createElement('div'); toastEl.className = 'fm-toast'; document.body.appendChild(toastEl); }
+    if (!toastEl) {
+      toastEl = document.createElement('div');
+      toastEl.className = 'fm-toast';
+      document.body.appendChild(toastEl);
+    }
     toastEl.textContent = e.detail;
     toastEl.classList.add('show');
     clearTimeout(toastT);
     toastT = setTimeout(() => toastEl.classList.remove('show'), 1300);
   });
 
-  // ---------- עיצוב ----------
+  // ---------- Styling ----------
   function adopt(doc, win) {
     try {
       const sheet = new win.CSSStyleSheet();
       sheet.replaceSync(CSS);
       doc.adoptedStyleSheets = [...doc.adoptedStyleSheets, sheet];
     } catch {
-      const s = doc.createElement('style'); s.textContent = CSS; doc.head.appendChild(s);
+      const s = doc.createElement('style');
+      s.textContent = CSS;
+      doc.head.appendChild(s);
     }
   }
 

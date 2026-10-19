@@ -32,7 +32,7 @@ Texts to paste into the Chrome Web Store Developer Dashboard. The name and short
 תוסף לא רשמי. אינו קשור ל־103FM, לגלי צה״ל או לתאגיד השידור הישראלי כאן.
 ```
 
-**Screenshots** (1280×800): `store-assets/` — 103FM, Galei Tzahal, Kan.
+**Screenshots** (1280×800): `docs/store-assets/` — 103FM, Galei Tzahal, Kan.
 
 **Homepage URL**: https://portfolio-upgrade-xi.vercel.app/
 

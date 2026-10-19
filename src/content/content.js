@@ -1,14 +1,26 @@
-// רץ בעולם של הדף — הנגנים של 103FM וגלצ יוצרים <audio> שלא נכנס ל-DOM, אז תופסים אותו כאן
+// Runs in the page world: the 103FM and Galei Tzahal players create an <audio> that is never attached to the DOM, so we catch it here
 (() => {
-  // הגדרות לכל אתר:
-  // inline = מחליפים את הנגן שבתוך הדף; dock = נבנים בתוך הסרגל הקבוע של האתר;
-  // bar = סרגל משלנו בתחתית המסך שמעלים את הנגן של האתר (hide); בלי אף אחד מהם מוצג נגן צף
+  // Per-site settings:
+  // inline = replace the player inside the page; dock = build into the site's fixed bar;
+  // bar = our own bottom bar that hides the site's player (hide); with none of them a floating player is shown
   const SITES = [
-    { host: /(^|\.)maariv\.co\.il$/, name: '103FM', inline: '.content_centerblock.player',
-      btn: '.mouthjs-playbutton', title: '.content_centerblock.player h1', duration: '.mouthjs-duration' },
+    {
+      host: /(^|\.)maariv\.co\.il$/,
+      name: '103FM',
+      inline: '.content_centerblock.player',
+      btn: '.mouthjs-playbutton',
+      title: '.content_centerblock.player h1',
+      duration: '.mouthjs-duration'
+    },
     { host: /(^|\.)glz\.co\.il$/, name: 'גלי צה״ל', dock: '.playerNew', title: '.playerNew .title' },
-    { host: /(^|\.)kan\.org\.il$/, name: 'כאן', bar: true, hide: '.desktop-audio-player',
-      title: '.desktop-audio-player .player-title', share: false }
+    {
+      host: /(^|\.)kan\.org\.il$/,
+      name: 'כאן',
+      bar: true,
+      hide: '.desktop-audio-player',
+      title: '.desktop-audio-player .player-title',
+      share: false
+    }
   ];
   const site = SITES.find(s => s.host.test(location.hostname)) || { name: document.title, bottom: 20 };
 
@@ -16,16 +28,19 @@
   const known = new Set();
   let busy = false;
 
-  // פרסומות של גוגל (IMA) מתנגנות לרוב ב-<video> בתוך מכולה משלהן
+  // Google (IMA) ads usually play in a <video> inside their own container
   const AD_BOX = '#ima-container,.ima-ad-container,[id*="ima-ad"]';
   const isAd = el => el.id === 'ima-player' || !!el.closest?.(AD_BOX);
   const isContent = el => !isAd(el) && el.duration > 60 && isFinite(el.duration);
 
   function apply(el) {
-    // עוקבים אחרי כל אודיו, ואחרי וידאו רק כשהוא פרסומת (כדי לעצור אותה מהנגן)
+    // Track every audio element, and video only when it is an ad (so the player can pause it)
     if (!(el instanceof HTMLAudioElement) && !(el instanceof HTMLMediaElement && isAd(el))) return;
-    if (!known.has(el)) { known.add(el); hook(el); }
-    if (isAd(el)) return; // לא מאיצים פרסומות
+    if (!known.has(el)) {
+      known.add(el);
+      hook(el);
+    }
+    if (isAd(el)) return; // Do not speed up ads
     const r = rate();
     if (Math.abs(el.playbackRate - r) > 0.01) {
       busy = true;
@@ -40,22 +55,44 @@
     known.forEach(apply);
   };
 
-  // אוכפים מהירות בכל פעם שהנגן מאפס אותה
+  // Enforce the speed every time the player resets it
   ['play', 'playing', 'loadedmetadata', 'ratechange'].forEach(ev =>
-    document.addEventListener(ev, e => { if (!busy) apply(e.target); }, true));
+    document.addEventListener(
+      ev,
+      e => {
+        if (!busy) apply(e.target);
+      },
+      true
+    )
+  );
 
   const origPlay = HTMLMediaElement.prototype.play;
-  HTMLMediaElement.prototype.play = function (...a) { apply(this); return origPlay.apply(this, a); };
+  HTMLMediaElement.prototype.play = function (...a) {
+    apply(this);
+    return origPlay.apply(this, a);
+  };
 
-  new MutationObserver(applyAll).observe(document.documentElement,
-    { attributes: true, attributeFilter: ['data-fm-speed'] });
+  new MutationObserver(applyAll).observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['data-fm-speed']
+  });
   setInterval(applyAll, 1500);
 
-  // ---- זכירת מיקום השמעה ----
+  // ---- Remember playback position ----
   const KEY = 'fm-speed-positions';
   const idOf = el => (el.currentSrc || el.src || '').split('?')[0];
-  const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } };
-  const save = db => { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch {} };
+  const load = () => {
+    try {
+      return JSON.parse(localStorage.getItem(KEY)) || {};
+    } catch {
+      return {};
+    }
+  };
+  const save = db => {
+    try {
+      localStorage.setItem(KEY, JSON.stringify(db));
+    } catch {}
+  };
   const fmt = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
   const toast = t => document.dispatchEvent(new CustomEvent('fm-toast', { detail: t }));
 
@@ -64,8 +101,11 @@
     let last = 0;
     el.addEventListener('loadedmetadata', () => {
       if (!isContent(el)) return;
-      // קישור לקטע משותף גובר על "המשך מאיפה שעצרת"
-      if (window.__fmPendingClip) { document.dispatchEvent(new CustomEvent('fm-content-ready')); return; }
+      // A shared clip link takes precedence over "resume where you stopped"
+      if (window.__fmPendingClip) {
+        document.dispatchEvent(new CustomEvent('fm-content-ready'));
+        return;
+      }
       const p = load()[idOf(el)];
       if (p && p.t > 15 && p.t < el.duration - 30) {
         el.currentTime = p.t;
@@ -77,13 +117,20 @@
       last = Date.now();
       const db = load();
       db[idOf(el)] = { t: el.currentTime, at: Date.now() };
-      Object.keys(db).sort((a, b) => db[b].at - db[a].at).slice(50).forEach(k => delete db[k]);
+      Object.keys(db)
+        .sort((a, b) => db[b].at - db[a].at)
+        .slice(50)
+        .forEach(k => delete db[k]);
       save(db);
     });
-    el.addEventListener('ended', () => { const db = load(); delete db[idOf(el)]; save(db); });
+    el.addEventListener('ended', () => {
+      const db = load();
+      delete db[idOf(el)];
+      save(db);
+    });
   }
 
-  // ---- ממשק לנגן (player.js) ----
+  // ---- Player interface (player.js) ----
   window.__fm = {
     audio: () => [...known].find(a => !a.paused && isContent(a)) || [...known].find(isContent) || null,
     ad: () => [...known].find(a => isAd(a) && !a.paused) || null,
