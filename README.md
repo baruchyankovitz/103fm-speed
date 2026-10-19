@@ -1,4 +1,4 @@
-# Radio Speed — מאיץ השמעה לרדיו הישראלי
+# Radio Speed — מאיץ רדיו: מהירות השמעה ל־103FM, גלצ וכאן
 
 Chrome extension that adds playback speed control and a modern player to recorded shows on Israeli radio sites: 103FM (maariv.co.il), Galei Tzahal (glz.co.il) and Kan (kan.org.il).
 
@@ -70,6 +70,7 @@ Each version is a commit with a matching tag (`git checkout v1.2` to try an olde
 | v3.0 | Multi-site: Galei Tzahal (built into the top bar) and Kan (own resizable bottom bar replacing the site's) |
 | v3.1 | The play button pauses and resumes ads on 103FM |
 | v3.2 | Detect IMA video ads (`#ima-container`) so ads can actually be paused and are never sped up |
+| v3.3 | Renamed to "מאיץ רדיו – מהירות השמעה ל־103FM, גלצ וכאן"; store listing texts in `STORE_LISTING.md` |
 
 ## Author
 

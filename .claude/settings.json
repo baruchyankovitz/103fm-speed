@@ -3,7 +3,8 @@
     "allow": [
       "ClaudeInChromeDomain(glz.co.il)",
       "ClaudeInChromeDomain(www.kan.org.il)",
-      "ClaudeInChromeDomain(103fm.maariv.co.il)"
+      "ClaudeInChromeDomain(103fm.maariv.co.il)",
+      "ClaudeInChromeDomain(chrome.google.com)"
     ]
   }
 }
