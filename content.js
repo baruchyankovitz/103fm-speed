@@ -1,10 +1,22 @@
-// רץ בעולם של הדף — הנגן של 103FM יוצר <audio> שלא נכנס ל-DOM, אז תופסים אותו כאן
+// רץ בעולם של הדף — הנגנים של 103FM וגלצ יוצרים <audio> שלא נכנס ל-DOM, אז תופסים אותו כאן
 (() => {
+  // הגדרות לכל אתר:
+  // inline = מחליפים את הנגן שבתוך הדף; dock = נבנים בתוך הסרגל הקבוע של האתר;
+  // bar = סרגל משלנו בתחתית המסך שמעלים את הנגן של האתר (hide); בלי אף אחד מהם מוצג נגן צף
+  const SITES = [
+    { host: /(^|\.)maariv\.co\.il$/, name: '103FM', inline: '.content_centerblock.player',
+      btn: '.mouthjs-playbutton', title: '.content_centerblock.player h1', duration: '.mouthjs-duration' },
+    { host: /(^|\.)glz\.co\.il$/, name: 'גלי צה״ל', dock: '.playerNew', title: '.playerNew .title' },
+    { host: /(^|\.)kan\.org\.il$/, name: 'כאן', bar: true, hide: '.desktop-audio-player',
+      title: '.desktop-audio-player .player-title', share: false }
+  ];
+  const site = SITES.find(s => s.host.test(location.hostname)) || { name: document.title, bottom: 20 };
+
   const rate = () => parseFloat(document.documentElement.getAttribute('data-fm-speed')) || 1.5;
   const known = new Set();
   let busy = false;
 
-  const isAd = el => el.id === 'ima-player';
+  const isAd = el => el.id === 'ima-player' || !!el.closest?.('.ima-ad-container,[id*="ima-ad"]');
   const isContent = el => !isAd(el) && el.duration > 60 && isFinite(el.duration);
 
   function apply(el) {
@@ -69,6 +81,7 @@
   window.__fm = {
     audio: () => [...known].find(a => !a.paused && isContent(a)) || [...known].find(isContent) || null,
     ad: () => [...known].find(a => isAd(a) && !a.paused) || null,
-    rate
+    rate,
+    site
   };
 })();

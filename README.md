@@ -1,10 +1,20 @@
-# 103FM Speed — מאיץ השמעה ל־103FM
+# Radio Speed — מאיץ השמעה לרדיו הישראלי
 
-Chrome extension that adds playback speed control and a modern player to recorded shows on 103FM (maariv.co.il).
+Chrome extension that adds playback speed control and a modern player to recorded shows on Israeli radio sites: 103FM (maariv.co.il), Galei Tzahal (glz.co.il) and Kan (kan.org.il).
 
-תוסף כרום שמאפשר להאזין לתוכניות המוקלטות של 103FM במהירות מותאמת, עם נגן מודרני, טיימר שינה, נגן צף ושיתוף קטעים.
+תוסף כרום שמאפשר להאזין לתוכניות המוקלטות של 103FM, גלי צה״ל וכאן במהירות מותאמת, עם נגן מודרני, טיימר שינה, נגן צף ושיתוף קטעים.
 
-## Features (v2.0)
+## Supported sites
+
+| Site | How the player appears |
+|---|---|
+| 103FM | Replaces the site's player inside the page |
+| Galei Tzahal | Built into the site's sticky top bar |
+| Kan | Replaces the site's bottom bar with a resizable bar (full / slim) that reserves its own space so page content is never hidden |
+
+Live broadcasts keep the site's own player. Sites are configured in the `SITES` table at the top of `content.js`.
+
+## Features
 
 - **Playback speed** from 0.5x to 3x: presets plus fine 0.05 steps, remembered across sessions
 - **Remaining time** recalculated for the current speed, plus the clock time the show will end
@@ -44,7 +54,7 @@ No data leaves the browser: settings live in `chrome.storage.sync`, playback pos
 1. Download or clone this repository.
 2. Open `chrome://extensions` and turn on **Developer mode**.
 3. Click **Load unpacked** and select the repository folder.
-4. Open any recorded show on 103fm.maariv.co.il.
+4. Open any recorded show on 103FM, Galei Tzahal or Kan.
 
 ## Version history
 
@@ -57,6 +67,7 @@ Each version is a commit with a matching tag (`git checkout v1.2` to try an olde
 | v1.2 | Control bar under the player with skip buttons and speed-adjusted remaining time |
 | v1.3 | Skip step changed from 15s to 10s |
 | v2.0 | Full replacement player: waveform, sleep timer, clip sharing, floating player, media keys |
+| v3.0 | Multi-site: Galei Tzahal (built into the top bar) and Kan (own resizable bottom bar replacing the site's) |
 
 ## Author
 

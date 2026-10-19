@@ -1,8 +1,10 @@
-// נגן מודרני ל־103FM — רץ בעולם הדף ומחליף את הממשק של הנגן המקורי
+// נגן מודרני לאתרי רדיו — רץ בעולם הדף. ב־103FM מחליף את הנגן המקורי, בשאר האתרים מוצג כנגן צף
 (() => {
   if (window.top !== window) return; // רק בחלון הראשי, לא ב-iframes
   const $ = (s, r = document) => r.querySelector(s);
   const FM = () => window.__fm;
+  const site = FM()?.site || {};
+  const floating = !site.inline && !site.dock && !site.bar;
   const PRESETS = [1, 1.25, 1.5, 1.75, 2, 2.5, 3];
 
   // ---------- עזרים ----------
@@ -18,11 +20,12 @@
     return t.split(':').reduce((a, v) => a * 60 + +v, 0);
   };
   const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+  const store = (k, v) => { try { return v === undefined ? localStorage.getItem(k) : localStorage.setItem(k, v); } catch {} };
   const rate = () => FM()?.rate() || 1.5;
   const audio = () => FM()?.audio();
-  const siteBtn = () => $('.mouthjs-playbutton');
-  const title = () => ($('.content_centerblock.player h1')?.textContent || document.title).trim();
-  const siteDuration = () => parseT($('.mouthjs-duration')?.textContent.trim());
+  const siteBtn = () => site.btn && $(site.btn);
+  const title = () => ((site.title && $(site.title)?.textContent) || document.title).trim();
+  const siteDuration = () => site.duration ? parseT($(site.duration)?.textContent.trim()) : NaN;
   const dur = () => { const a = audio(); return a && isFinite(a.duration) ? a.duration : siteDuration(); };
   const cur = () => audio()?.currentTime || 0;
   const playing = () => { const a = audio(); return FM()?.ad() ? true : a ? !a.paused : siteBtn()?.classList.contains('playing'); };
@@ -63,13 +66,14 @@
     moon: '<svg viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg>',
     share: '<svg viewBox="0 0 24 24"><circle cx="18" cy="5.5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="18.5" r="2.5"/><path d="M8.2 10.8l7.6-4.1M8.2 13.2l7.6 4.1" stroke="currentColor" stroke-width="1.8"/></svg>',
     pip: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><rect x="11.5" y="11" width="7.5" height="6" rx="1.2"/></svg>',
+    chev: '<svg viewBox="0 0 24 24"><path d="M6 9.5l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
     close: '<svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>',
     keys: '<svg viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M6 10h1.5M9.5 10H11M13 10h1.5M16.5 10H18M8 14h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>'
   };
 
   // גל קול דקורטיבי (קבוע לכל תוכנית)
   function wave(n = 140) {
-    let seed = [...location.search].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
+    let seed = [...location.pathname + location.search].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7);
     const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 2 ** 32);
     let out = '';
     for (let i = 0; i < n; i++) {
@@ -92,6 +96,14 @@
     </div>`;
 
   const mainHTML = `
+    <div class="fm-float-head">
+      <button class="fm-play sm fm-head-play" data-act="play" title="השמעה / עצירה (רווח)"><span data-role="play-icon">${I.play}</span></button>
+      <div class="fm-float-title" data-role="title"></div>
+      <span class="fm-head-rate" data-role="rate">1.5x</span>
+      <button class="fm-icon-btn sm fm-x" data-act="collapse" title="מזעור">${I.close}</button>
+      <button class="fm-icon-btn sm fm-chev" data-act="collapse" title="הקטנה / הגדלה">${I.chev}</button>
+    </div>
+    <button class="fm-pill" data-act="collapse" title="הצגת הנגן" dir="ltr"><span data-role="play-icon">${I.play}</span><span data-role="rate">1.5x</span></button>
     <div class="fm-banner" data-role="banner" hidden></div>
     ${seekHTML}
     <div class="fm-times" dir="ltr"><span data-role="cur">00:00</span><span data-role="dur">--:--</span></div>
@@ -194,7 +206,7 @@
 
   // ---------- מצב ----------
   const roots = new Set();       // כל המופעים של הממשק (ראשי, מיני, חלון צף)
-  let main, mini, help, pipWin = null, miniDismissed = false, mainVisible = true;
+  let main, mini, help, dockHost = null, pipWin = null, miniDismissed = false, mainVisible = true;
   let sleep = null;              // {until} או {end:true}
   let clipStop = null;           // עצירה אוטומטית בסוף קטע משותף
   let dragging = null;           // {root, ratio}
@@ -226,16 +238,48 @@
   // ---------- בנייה ----------
   function mountMain() {
     if (main && document.contains(main)) return;
-    const player = $('.content_centerblock.player');
-    if (!player || !siteBtn()) return;
-    player.classList.add('fm-enhanced');
-    $('.fm-bar', player)?.remove(); // הסרגל מגרסה קודמת
+    if (main) roots.delete(main); // האתר בנה מחדש את הנגן שלו — מרכיבים שוב
     main = document.createElement('div');
     main.className = 'fm-player';
     main.dir = 'rtl';
     main.innerHTML = mainHTML;
-    player.appendChild(main);
+    main.classList.toggle('fm-noshare', site.share === false);
+    if (site.dock) {
+      // מובנה בתוך הסרגל הקבוע של האתר ומחליף את הממשק שלו כשמתנגנת תוכנית מוקלטת
+      dockHost = $(site.dock);
+      if (!dockHost) { main = null; return; }
+      main.classList.add('fm-dock');
+      main.classList.toggle('fm-pop-up', !!site.popUp);
+      main.hidden = true;
+      dockHost.appendChild(main);
+    } else if (site.bar) {
+      // סרגל קבוע בתחתית המסך שתופס מקום בדף במקום להסתיר אותו
+      if (!document.body) { main = null; return; }
+      main.classList.add('fm-dock', 'fm-fixed', 'fm-pop-up');
+      main.classList.toggle('fm-slim', store('fm-slim') === '1');
+      main.hidden = true;
+      document.body.appendChild(main);
+      new ResizeObserver(reserveSpace).observe(main);
+    } else if (floating) {
+      // נגן צף בפינה — מופיע רק כשמתנגנת תוכנית מוקלטת
+      if (!document.body) { main = null; return; }
+      main.classList.add('fm-float');
+      main.classList.toggle('fm-collapsed', store('fm-collapsed') === '1');
+      main.style.setProperty('--fm-bottom', (site.bottom ?? 20) + 'px');
+      main.hidden = true;
+      document.body.appendChild(main);
+    } else {
+      const player = $(site.inline);
+      if (!player || !siteBtn()) { main = null; return; }
+      player.classList.add('fm-enhanced');
+      $('.fm-bar', player)?.remove(); // הסרגל מגרסה קודמת
+      player.appendChild(main);
+    }
     wire(main);
+    // בנגן מובנה בסרגל קבוע או צף אין צורך במיני-נגן: הנגן עצמו תמיד על המסך
+    if (site.inline) new IntersectionObserver(([e]) => { mainVisible = e.isIntersecting; update(); }, { threshold: 0 }).observe(main);
+    if (hashClip) setBanner(`קטע משותף: ${rng(hashClip.a, hashClip.b)} · לחצו על השמעה`);
+    if (mini) { update(); return; } // הרכבה חוזרת: המיני-נגן והעזרה כבר קיימים
 
     mini = document.createElement('div');
     mini.className = 'fm-miniplayer';
@@ -251,11 +295,16 @@
     help.innerHTML = helpHTML;
     help.addEventListener('click', e => { if (e.target === help || e.target.closest('[data-act="help"]')) toggleHelp(false); });
     document.body.appendChild(help);
-
-    new IntersectionObserver(([e]) => { mainVisible = e.isIntersecting; update(); }, { threshold: 0 }).observe(main);
-    if (hashClip) setBanner(`קטע משותף: ${rng(hashClip.a, hashClip.b)} · לחצו על השמעה`);
     setupMediaSession();
     update();
+  }
+
+  // מוסיף לדף ריווח בגובה הסרגל, כדי שלא יסתיר את התוכן שבתחתית
+  function reserveSpace() {
+    if (!document.body || !main) return;
+    const h = main.hidden ? 0 : main.offsetHeight;
+    document.body.style.setProperty('padding-bottom', h ? h + 'px' : '', h ? 'important' : '');
+    if (!h) document.body.style.removeProperty('padding-bottom');
   }
 
   function setBanner(text) {
@@ -346,6 +395,13 @@
       case 'share': share(v, root); break;
       case 'pip': openPip(); break;
       case 'mini-close': miniDismissed = true; break;
+      case 'collapse': {
+        const cls = site.bar ? 'fm-slim' : 'fm-collapsed';
+        const c = main.classList.toggle(cls);
+        store(cls, c ? '1' : '0');
+        closePops(root);
+        break;
+      }
       case 'help': toggleHelp(); break;
     }
     update();
@@ -447,6 +503,16 @@
           : 'לחצו על השמעה כדי להתחיל';
       });
     }
+    if (!site.inline && main) {
+      const was = main.hidden;
+      main.hidden = !a && !ad; // בשידור חי נשאר הנגן של האתר
+      if (site.bar && was !== main.hidden) reserveSpace();
+    }
+    if (dockHost) dockHost.classList.toggle('fm-docked', !!main && !main.hidden);
+    if (site.hide) document.querySelectorAll(site.hide).forEach(el => {
+      if (main && !main.hidden) el.style.setProperty('display', 'none', 'important');
+      else el.style.removeProperty('display');
+    });
     if (mini) mini.classList.toggle('show', !mainVisible && !!isPlay && !pipWin && !miniDismissed);
     if (mainVisible) miniDismissed = false;
     updateMediaSession(c, d, r, isPlay);
@@ -468,13 +534,20 @@
   }
 
   // ---------- מקשי מדיה + הפקדים של כרום ----------
+  let msTitle = '';
+  function setMetadata() {
+    const t = title();
+    if (t === msTitle) return;
+    msTitle = t;
+    const art = document.querySelector('meta[property="og:image"]')?.content;
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({ title: t, artist: site.name || '', album: document.title, artwork: art ? [{ src: art, sizes: '512x512' }] : [] });
+    } catch {}
+  }
   function setupMediaSession() {
     if (!('mediaSession' in navigator)) return;
     const ms = navigator.mediaSession;
-    const art = document.querySelector('meta[property="og:image"]')?.content;
-    try {
-      ms.metadata = new MediaMetadata({ title: title(), artist: '103FM', album: document.title, artwork: art ? [{ src: art, sizes: '512x512' }] : [] });
-    } catch {}
+    setMetadata();
     const h = (n, f) => { try { ms.setActionHandler(n, f); } catch {} };
     h('play', () => { if (!playing()) togglePlay(); });
     h('pause', () => pause());
@@ -488,6 +561,7 @@
   function updateMediaSession(c, d, r, isPlay) {
     if (!('mediaSession' in navigator) || !audio() || Date.now() - msLast < 1000) return;
     msLast = Date.now();
+    setMetadata(); // באתרים שמחליפים תוכנית בלי לטעון דף מחדש
     try {
       navigator.mediaSession.playbackState = isPlay ? 'playing' : 'paused';
       if (isFinite(d) && d > 0) navigator.mediaSession.setPositionState({ duration: d, position: clamp(c, 0, d), playbackRate: r });
@@ -499,7 +573,7 @@
     const t = e.target;
     if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) && t.type !== 'range')) return;
     if (e.ctrlKey || e.metaKey || e.altKey) return;
-    if (!main) return;
+    if (!main || main.hidden) return; // בנגן הצף: מקשים פעילים רק כשמתנגנת תוכנית
     let ok = true;
     if (e.key === 'Escape') { toggleHelp(false); roots.forEach(r => closePops(r)); }
     else if (e.code === 'Space') togglePlay();
@@ -620,6 +694,54 @@
   .fm-help dd{margin:0;align-self:center}
   .fm-toast{position:fixed;left:50%;top:18%;transform:translate(-50%,-6px);padding:10px 20px;border-radius:14px;background:rgba(20,20,30,.86);color:#fff;font-weight:800;font-size:18px;z-index:2147483647;opacity:0;transition:opacity .18s,transform .18s;pointer-events:none;direction:rtl;backdrop-filter:blur(6px)}
   .fm-toast.show{opacity:1;transform:translate(-50%,0)}
+  .fm-float-head,.fm-pill{display:none}
+  .fm-player.fm-float{position:fixed;left:16px;bottom:var(--fm-bottom,20px);z-index:2147483600;width:min(440px,calc(100vw - 32px));margin:0;padding:12px 16px 10px;box-shadow:0 18px 50px rgba(20,20,60,.22)}
+  .fm-player.fm-float[hidden]{display:none!important}
+  .fm-float .fm-float-head{display:flex;align-items:center;gap:8px;margin:-2px -8px 6px 0}
+  .fm-float-title{flex:1;min-width:0;font-weight:800;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fm-float .fm-seek{height:40px}
+  .fm-float .fm-controls{grid-template-columns:1fr 1fr;grid-template-areas:"t t" "r l";gap:6px}
+  .fm-float .fm-transport{grid-area:t;justify-content:center}.fm-float .fm-side-r{grid-area:r}.fm-float .fm-side-l{grid-area:l}
+  .fm-float .fm-play{width:52px;height:52px}.fm-float .fm-play svg{width:24px;height:24px}
+  .fm-float .fm-vol input{width:70px}
+  .fm-float .fm-pop{top:auto;bottom:calc(100% + 10px)}
+  .fm-float .fm-status{margin-top:8px;padding-top:8px;font-size:12px}
+  .fm-noshare [data-act="share-pop"]{display:none}
+  .fm-float.fm-collapsed{width:auto;padding:0;border:0;background:none;box-shadow:none}
+  .fm-float.fm-collapsed>:not(.fm-pill){display:none!important}
+  .fm-float.fm-collapsed .fm-pill{display:flex;align-items:center;gap:8px;height:46px;padding:0 16px 0 8px;border-radius:999px;background:linear-gradient(145deg,var(--fm-red),var(--fm-red2))!important;color:#fff!important;font-weight:800!important;font-size:15px;box-shadow:0 8px 22px rgba(232,52,78,.38)}
+  .fm-pill svg{width:20px;height:20px;fill:currentColor;display:block}
+  .fm-pill [data-role=play-icon]{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.2);display:grid;place-items:center}
+  .fm-docked>:not(.fm-player){display:none!important}
+  .fm-docked{height:auto!important;min-height:0!important}
+  .fm-player.fm-dock{margin:0;border-radius:0;border:0;box-shadow:0 -4px 20px rgba(20,20,60,.08);background:#fff;padding:10px 24px 8px;display:grid;grid-template-columns:minmax(160px,260px) 1fr;column-gap:24px;row-gap:2px;align-items:center;grid-template-areas:"ban ban" "head seek" "stat times" "ctl ctl"}
+  .fm-player.fm-dock[hidden]{display:none!important}
+  .fm-dock .fm-banner{grid-area:ban;margin:0 0 6px}
+  .fm-dock .fm-float-head{display:flex;grid-area:head;margin:0}
+  .fm-dock .fm-float-head [data-act=collapse],.fm-dock .fm-pill{display:none}
+  .fm-dock .fm-float-title{font-size:15px}
+  .fm-dock .fm-seek{grid-area:seek;height:34px}
+  .fm-dock .fm-times{grid-area:times;margin-top:0;font-size:12px}
+  .fm-dock .fm-status{grid-area:stat;margin:0;padding:0;border:0;text-align:right;font-size:12px;line-height:1.4}
+  .fm-dock .fm-controls{grid-area:ctl;margin-top:2px}
+  .fm-dock .fm-play{width:48px;height:48px}.fm-dock .fm-play svg{width:22px;height:22px}
+  .fm-pop-up .fm-pop{top:auto;bottom:calc(100% + 10px)}
+  .fm-head-play,.fm-head-rate,.fm-chev{display:none!important}
+  .fm-dock .fm-x{display:none!important}
+  .fm-fixed .fm-chev{display:grid!important}
+  .fm-chev svg{transition:transform .2s}
+  .fm-player.fm-fixed{position:fixed;left:0;right:0;bottom:0;z-index:2147483600;border-top:1px solid var(--fm-line)}
+  .fm-fixed .fm-float-head{gap:8px}
+  .fm-fixed.fm-slim{grid-template-columns:minmax(160px,320px) 1fr;grid-template-areas:"head seek";padding:6px 16px}
+  .fm-fixed.fm-slim .fm-controls,.fm-fixed.fm-slim .fm-status,.fm-fixed.fm-slim .fm-times,.fm-fixed.fm-slim .fm-banner{display:none!important}
+  .fm-fixed.fm-slim .fm-head-play{display:grid!important;width:38px;height:38px}.fm-fixed.fm-slim .fm-head-play svg{width:17px;height:17px}
+  .fm-fixed.fm-slim .fm-head-rate{display:block!important;font-weight:800;font-size:13px;color:var(--fm-red2)}
+  .fm-fixed.fm-slim .fm-seek{height:28px}
+  .fm-fixed.fm-slim .fm-chev svg{transform:rotate(180deg)}
+  @media (max-width:760px){
+    .fm-player.fm-dock{padding:8px 12px;grid-template-columns:1fr;grid-template-areas:"ban" "head" "seek" "times" "ctl"}
+    .fm-dock .fm-status{display:none}
+  }
   @media (max-width:760px){
     .fm-player{padding:16px 14px 12px;border-radius:18px}
     .fm-controls{grid-template-columns:1fr 1fr;grid-template-areas:"t t" "r l"}

@@ -1,13 +1,16 @@
 {
   "manifest_version": 3,
-  "name": "מאיץ השמעה ל־103FM",
-  "version": "2.0",
-  "description": "נגן מודרני לתוכניות 103FM: מהירות השמעה, דילוגים, טיימר שינה, נגן צף ושיתוף קטעים",
+  "name": "מאיץ השמעה לרדיו הישראלי",
+  "version": "3.0",
+  "description": "נגן מודרני לתוכניות רדיו מוקלטות ב־103FM, גלי צה״ל וכאן: מהירות השמעה, דילוגים, טיימר שינה, נגן צף ושיתוף קטעים",
   "permissions": [
     "storage"
   ],
   "host_permissions": [
-    "*://*.maariv.co.il/*"
+    "*://*.maariv.co.il/*",
+    "*://*.glz.co.il/*",
+    "*://glz.co.il/*",
+    "*://*.kan.org.il/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -15,7 +18,10 @@
   "content_scripts": [
     {
       "matches": [
-        "*://*.maariv.co.il/*"
+        "*://*.maariv.co.il/*",
+        "*://*.glz.co.il/*",
+        "*://glz.co.il/*",
+        "*://*.kan.org.il/*"
       ],
       "js": [
         "bridge.js"
@@ -25,7 +31,10 @@
     },
     {
       "matches": [
-        "*://*.maariv.co.il/*"
+        "*://*.maariv.co.il/*",
+        "*://*.glz.co.il/*",
+        "*://glz.co.il/*",
+        "*://*.kan.org.il/*"
       ],
       "js": [
         "content.js",
@@ -38,7 +47,7 @@
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "103FM Speed",
+    "default_title": "Radio Speed",
     "default_icon": {
       "16": "icon16.png",
       "48": "icon48.png"

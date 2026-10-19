@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "ClaudeInChromeDomain(glz.co.il)",
+      "ClaudeInChromeDomain(www.kan.org.il)"
+    ]
+  }
+}
