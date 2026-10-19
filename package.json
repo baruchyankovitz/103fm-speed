@@ -1,16 +1,19 @@
 {
   "name": "radio-speed",
-  "version": "3.5.0",
+  "version": "3.6.0",
   "private": true,
   "type": "module",
   "scripts": {
+    "build": "esbuild media=src/content/media/index.js player=src/content/player/index.js --bundle --format=iife --target=chrome120 --loader:.css=text --outdir=dist",
+    "watch": "npm run build -- --watch",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "zip": "zip -r \"../103fm-speed-v$(node -p \"require('./manifest.json').version\").zip\" manifest.json src icons -x '*.DS_Store'"
+    "zip": "npm run build && zip -r \"../103fm-speed-v$(node -p \"require('./manifest.json').version\").zip\" manifest.json src/background src/content/bridge.js src/popup dist icons -x '*.DS_Store'"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
+    "esbuild": "^0.28.2",
     "eslint": "^9.39.5",
     "globals": "^17.13.0",
     "prettier": "^3.9.10"
