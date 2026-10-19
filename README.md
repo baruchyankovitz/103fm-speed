@@ -68,6 +68,7 @@ Each version is a commit with a matching tag (`git checkout v1.2` to try an olde
 | v1.3 | Skip step changed from 15s to 10s |
 | v2.0 | Full replacement player: waveform, sleep timer, clip sharing, floating player, media keys |
 | v3.0 | Multi-site: Galei Tzahal (built into the top bar) and Kan (own resizable bottom bar replacing the site's) |
+| v3.1 | The play button pauses and resumes ads on 103FM |
 
 ## Author
 

@@ -40,11 +40,19 @@
     update();
   }
   function togglePlay() {
+    // הכפתור של האתר לא שולט בפרסומת, אז עוצרים וממשיכים אותה ישירות
+    const ad = FM()?.ad(), pausedAd = FM()?.pausedAd?.();
+    if (ad) { ad.pause(); return; }
+    if (pausedAd) { pausedAd.play().catch(() => {}); return; }
     const b = siteBtn();
     if (b) b.click();
     else { const a = audio(); if (a) a.paused ? a.play() : a.pause(); }
   }
-  function pause() { if (playing() && !FM()?.ad()) togglePlay(); }
+  function pause() {
+    const ad = FM()?.ad();
+    if (ad) ad.pause();
+    else if (playing()) togglePlay();
+  }
   function seekTo(t, quiet) {
     const a = audio();
     if (!a || FM()?.ad()) { if (!quiet) toast('לחצו קודם על השמעה'); return; }
@@ -499,6 +507,7 @@
       root.classList.toggle('fm-is-playing', !!isPlay);
       q('status').forEach(e => {
         e.innerHTML = ad ? '<span class="fm-ad-pill">פרסומת</span> התוכנית תתחיל מיד אחריה'
+          : FM()?.pausedAd?.() ? '<span class="fm-ad-pill">פרסומת</span> מושהית · לחצו על השמעה כדי להמשיך'
           : isFinite(left) && a ? `נותרו <b>${fmt(left)}</b> במהירות ${r}x <span class="fm-dot">•</span> מסתיים ב־${endAt}` + (sleep ? ` <span class="fm-dot">•</span> טיימר שינה פעיל` : '')
           : 'לחצו על השמעה כדי להתחיל';
       });

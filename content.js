@@ -81,6 +81,7 @@
   window.__fm = {
     audio: () => [...known].find(a => !a.paused && isContent(a)) || [...known].find(isContent) || null,
     ad: () => [...known].find(a => isAd(a) && !a.paused) || null,
+    pausedAd: () => [...known].find(a => isAd(a) && a.paused && a.currentTime > 0 && !a.ended) || null,
     rate,
     site
   };
