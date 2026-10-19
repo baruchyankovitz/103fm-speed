@@ -16,11 +16,14 @@
   const known = new Set();
   let busy = false;
 
-  const isAd = el => el.id === 'ima-player' || !!el.closest?.('.ima-ad-container,[id*="ima-ad"]');
+  // פרסומות של גוגל (IMA) מתנגנות לרוב ב-<video> בתוך מכולה משלהן
+  const AD_BOX = '#ima-container,.ima-ad-container,[id*="ima-ad"]';
+  const isAd = el => el.id === 'ima-player' || !!el.closest?.(AD_BOX);
   const isContent = el => !isAd(el) && el.duration > 60 && isFinite(el.duration);
 
   function apply(el) {
-    if (!(el instanceof HTMLAudioElement)) return;
+    // עוקבים אחרי כל אודיו, ואחרי וידאו רק כשהוא פרסומת (כדי לעצור אותה מהנגן)
+    if (!(el instanceof HTMLAudioElement) && !(el instanceof HTMLMediaElement && isAd(el))) return;
     if (!known.has(el)) { known.add(el); hook(el); }
     if (isAd(el)) return; // לא מאיצים פרסומות
     const r = rate();
@@ -32,7 +35,10 @@
       busy = false;
     }
   }
-  const applyAll = () => { document.querySelectorAll('audio').forEach(apply); known.forEach(apply); };
+  const applyAll = () => {
+    document.querySelectorAll(`audio,:is(${AD_BOX}) video`).forEach(apply);
+    known.forEach(apply);
+  };
 
   // אוכפים מהירות בכל פעם שהנגן מאפס אותה
   ['play', 'playing', 'loadedmetadata', 'ratechange'].forEach(ev =>

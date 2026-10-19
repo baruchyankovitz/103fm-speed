@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "ClaudeInChromeDomain(glz.co.il)",
-      "ClaudeInChromeDomain(www.kan.org.il)"
+      "ClaudeInChromeDomain(www.kan.org.il)",
+      "ClaudeInChromeDomain(103fm.maariv.co.il)"
     ]
   }
 }

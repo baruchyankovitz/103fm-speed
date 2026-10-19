@@ -69,6 +69,7 @@ Each version is a commit with a matching tag (`git checkout v1.2` to try an olde
 | v2.0 | Full replacement player: waveform, sleep timer, clip sharing, floating player, media keys |
 | v3.0 | Multi-site: Galei Tzahal (built into the top bar) and Kan (own resizable bottom bar replacing the site's) |
 | v3.1 | The play button pauses and resumes ads on 103FM |
+| v3.2 | Detect IMA video ads (`#ima-container`) so ads can actually be paused and are never sped up |
 
 ## Author
 
