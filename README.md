@@ -71,7 +71,8 @@ Each version is a commit with a matching tag (`git checkout v1.2` to try an olde
 | v3.1 | The play button pauses and resumes ads on 103FM |
 | v3.2 | Detect IMA video ads (`#ima-container`) so ads can actually be paused and are never sped up |
 | v3.3 | Renamed to "מאיץ רדיו – מהירות השמעה ל־103FM, גלצ וכאן"; store listing texts in `STORE_LISTING.md` |
+| v3.4 | Homepage and the popup credit link point to the portfolio site |
 
 ## Author
 
-Baruch Yankovitz — [LinkedIn](https://www.linkedin.com/in/baruch-yankovitz) · [GitHub](https://github.com/baruchyankovitz)
+Baruch Yankovitz — [Portfolio](https://portfolio-upgrade-xi.vercel.app/) · [LinkedIn](https://www.linkedin.com/in/baruch-yankovitz) · [GitHub](https://github.com/baruchyankovitz)

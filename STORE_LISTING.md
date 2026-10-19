@@ -34,7 +34,7 @@ Texts to paste into the Chrome Web Store Developer Dashboard. The name and short
 
 **Screenshots** (1280×800): `store-assets/` — 103FM, Galei Tzahal, Kan.
 
-**Homepage URL**: https://github.com/baruchyankovitz/103fm-speed
+**Homepage URL**: https://portfolio-upgrade-xi.vercel.app/
 
 ## Privacy practices tab
 
