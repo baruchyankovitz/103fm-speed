@@ -1,113 +1,82 @@
-import { $, site } from './env.js';
-import { fmt, store, toast } from './util.js';
-import { rate, audio, dur, cur } from './audio.js';
-import { setRate, togglePlay, seekTo, skip } from './controls.js';
-import { share } from './clip.js';
+import { registerActions } from './action-registry.js';
+import { PREF_COLLAPSED, PREF_SLIM } from './config.js';
+import { cancelSleep, sleepAfterMinutes, sleepAtEndOfShow } from './sleep-timer.js';
+import { byRole } from './dom.js';
+import { changeRate, jumpToEnd, jumpToStart, setRate, skip, togglePlay } from './controls.js';
+import { toggleHelp } from './help.js';
+import { dismissMini } from './mini-player.js';
+import { getMain } from './mount.js';
+import { currentAudio, currentTime } from './now-playing.js';
 import { openPip } from './pip.js';
-import { update } from './update.js';
-import { state } from './state.js';
+import { closePopovers, togglePopover } from './popovers.js';
+import { writePref } from './prefs.js';
+import { shareClip } from './share-actions.js';
+import { emitToast } from '../events.js';
+import { formatTime } from '../../shared/time.js';
+import { site } from '../sites.js';
 
-// Button actions and popovers
+// Button actions (data-act): name -> handler(value, root)
 
-export function closePops(root, except) {
-  (root.ownerDocument || document).querySelectorAll('.fm-pop').forEach(p => {
-    if (p !== except) p.hidden = true;
-  });
+function toggleMute() {
+  const audio = currentAudio();
+  if (!audio) return;
+  audio.muted = !audio.muted;
+  emitToast(audio.muted ? 'מושתק' : 'קול פעיל');
 }
-function togglePop(root, name) {
-  const p = $(`[data-pop="${name}"]`, root);
-  closePops(root, p);
-  p.hidden = !p.hidden;
-  if (name === 'share' && !p.hidden) {
-    const ia = $('[data-role="clip-a"]', root),
-      ib = $('[data-role="clip-b"]', root);
-    if (!ia.value) ia.value = fmt(cur());
-    if (!ib.value) ib.value = '';
+
+function chooseSleep(value, root) {
+  if (value === '0') {
+    cancelSleep();
+    emitToast('טיימר שינה בוטל');
+  } else if (value === 'end') {
+    sleepAtEndOfShow();
+    emitToast('ייעצר בסוף התוכנית');
+  } else {
+    sleepAfterMinutes(value);
+    emitToast(`ייעצר בעוד ${value} דקות`);
   }
+  closePopovers(root);
 }
 
-export function act(a, v, root) {
-  switch (a) {
-    case 'play':
-      togglePlay();
-      break;
-    case 'skip':
-      skip(+v);
-      break;
-    case 'start':
-      seekTo(0);
-      toast('להתחלה');
-      break;
-    case 'end':
-      seekTo(dur() - 1);
-      toast('לסוף');
-      break;
-    case 'speed-pop':
-      togglePop(root, 'speed');
-      break;
-    case 'rate':
-      setRate(+v);
-      break;
-    case 'rate-step':
-      setRate(rate() + +v);
-      break;
-    case 'mute': {
-      const au = audio();
-      if (au) {
-        au.muted = !au.muted;
-        toast(au.muted ? 'מושתק' : 'קול פעיל');
-      }
-      break;
-    }
-    case 'sleep-pop':
-      togglePop(root, 'sleep');
-      break;
-    case 'sleep':
-      if (v === '0') {
-        state.sleep = null;
-        toast('טיימר שינה בוטל');
-      } else if (v === 'end') {
-        state.sleep = { end: true };
-        toast('ייעצר בסוף התוכנית');
-      } else {
-        state.sleep = { until: Date.now() + v * 60000 };
-        toast(`ייעצר בעוד ${v} דקות`);
-      }
-      closePops(root);
-      break;
-    case 'share-pop':
-      togglePop(root, 'share');
-      break;
-    case 'clip-a':
-      $('[data-role="clip-a"]', root).value = fmt(cur());
-      break;
-    case 'clip-b':
-      $('[data-role="clip-b"]', root).value = fmt(cur());
-      break;
-    case 'share':
-      share(v, root);
-      break;
-    case 'pip':
-      openPip();
-      break;
-    case 'mini-close':
-      state.miniDismissed = true;
-      break;
-    case 'collapse': {
-      const cls = site.bar ? 'fm-slim' : 'fm-collapsed';
-      const c = state.main.classList.toggle(cls);
-      store(cls, c ? '1' : '0');
-      closePops(root);
-      break;
-    }
-    case 'help':
-      toggleHelp();
-      break;
-  }
-  update();
+function openSharePopover(root) {
+  if (!togglePopover(root, 'share')) return;
+  const startField = byRole(root, 'clip-a');
+  const endField = byRole(root, 'clip-b');
+  if (!startField.value) startField.value = formatTime(currentTime());
+  if (!endField.value) endField.value = '';
 }
 
-export function toggleHelp(force) {
-  if (!state.help) return;
-  state.help.hidden = force === undefined ? !state.help.hidden : !force;
+function toggleCollapse(root) {
+  const pref = site.bar ? PREF_SLIM : PREF_COLLAPSED;
+  const collapsed = getMain().classList.toggle(pref);
+  writePref(pref, collapsed ? '1' : '0');
+  closePopovers(root);
 }
+
+const fillWithCurrentTime = role => (value, root) => {
+  byRole(root, role).value = formatTime(currentTime());
+};
+
+const ACTIONS = {
+  play: () => togglePlay(),
+  skip: value => skip(+value),
+  start: jumpToStart,
+  end: jumpToEnd,
+  'speed-pop': (value, root) => togglePopover(root, 'speed'),
+  rate: value => setRate(+value),
+  'rate-step': value => changeRate(+value),
+  mute: toggleMute,
+  'sleep-pop': (value, root) => togglePopover(root, 'sleep'),
+  sleep: chooseSleep,
+  'share-pop': (value, root) => openSharePopover(root),
+  'clip-a': fillWithCurrentTime('clip-a'),
+  'clip-b': fillWithCurrentTime('clip-b'),
+  share: (value, root) => shareClip(value, root),
+  pip: () => openPip(),
+  'mini-close': dismissMini,
+  collapse: (value, root) => toggleCollapse(root),
+  help: () => toggleHelp()
+};
+
+/** Makes the button actions available to the UI. */
+export const initActions = () => registerActions(ACTIONS);

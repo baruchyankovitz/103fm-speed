@@ -1,7 +1,7 @@
 // Per-site settings:
 // inline = replace the player inside the page; dock = build into the site's fixed bar;
 // bar = our own bottom bar that hides the site's player (hide); with none of them a floating player is shown
-const SITES = [
+export const SITES = [
   {
     host: /(^|\.)maariv\.co\.il$/,
     name: '103FM',
@@ -20,4 +20,11 @@ const SITES = [
     share: false
   }
 ];
-export const site = SITES.find(s => s.host.test(location.hostname)) || { name: document.title, bottom: 20 };
+
+/** Finds the configured site for a hostname, if any. */
+export const findSite = hostname => SITES.find(candidate => candidate.host.test(hostname));
+
+/** True for sites without inline/dock/bar mode: the player floats in a corner. */
+export const isFloatingSite = candidate => !candidate.inline && !candidate.dock && !candidate.bar;
+
+export const site = findSite(location.hostname) || { name: document.title, bottom: 20 };

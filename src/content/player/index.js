@@ -1,18 +1,27 @@
-// Modern player for radio sites. Runs in the page world. On 103FM it replaces the original player; on other sites it is shown as a floating player
-import { initClip } from './clip.js';
+import { initActions } from './actions.js';
+import { initClipHandshake } from './clip-handshake.js';
 import { initKeyboard } from './keyboard.js';
-import { initToast } from './toast.js';
-import { adopt } from './styles.js';
 import { mountMain } from './mount.js';
-import { tick } from './timer.js';
+import { render } from './render.js';
+import { setRenderer } from './render-scheduler.js';
+import { loadSharedClip } from './shared-clip.js';
+import { adoptStyles } from './styles.js';
+import { startTicker } from './ticker.js';
+import { initToast } from './toast.js';
 
-// Main window only, not iframes
-if (window.top === window) {
-  initClip();
+/**
+ * Starts the custom player (top frame only).
+ * On 103FM it replaces the original player; on other sites it is shown as a floating player.
+ */
+export function initPlayer() {
+  setRenderer(render);
+  initActions();
+  loadSharedClip();
+  initClipHandshake();
   initKeyboard();
   initToast();
-  adopt(document, window);
+  adoptStyles(document, window);
   new MutationObserver(mountMain).observe(document, { childList: true, subtree: true });
   mountMain();
-  setInterval(tick, 250);
+  startTicker();
 }

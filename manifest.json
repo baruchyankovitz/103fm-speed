@@ -1,23 +1,24 @@
 {
   "manifest_version": 3,
   "name": "מאיץ רדיו – מהירות השמעה ל־103FM, גלצ וכאן",
-  "version": "3.6",
+  "version": "3.7",
   "description": "נגן מודרני לתוכניות רדיו מוקלטות ב־103FM, גלי צה״ל וכאן: מהירות השמעה, דילוגים, טיימר שינה, נגן צף ושיתוף קטעים",
   "permissions": ["storage"],
   "host_permissions": ["*://*.maariv.co.il/*", "*://*.glz.co.il/*", "*://glz.co.il/*", "*://*.kan.org.il/*"],
   "background": {
-    "service_worker": "src/background/background.js"
+    "service_worker": "src/background/background.js",
+    "type": "module"
   },
   "content_scripts": [
     {
       "matches": ["*://*.maariv.co.il/*", "*://*.glz.co.il/*", "*://glz.co.il/*", "*://*.kan.org.il/*"],
-      "js": ["src/content/bridge.js"],
+      "js": ["dist/bridge.js"],
       "all_frames": true,
       "run_at": "document_start"
     },
     {
       "matches": ["*://*.maariv.co.il/*", "*://*.glz.co.il/*", "*://glz.co.il/*", "*://*.kan.org.il/*"],
-      "js": ["dist/media.js", "dist/player.js"],
+      "js": ["dist/page.js"],
       "all_frames": true,
       "run_at": "document_start",
       "world": "MAIN"

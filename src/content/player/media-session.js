@@ -1,52 +1,66 @@
-import { site } from './env.js';
-import { clamp } from './util.js';
-import { audio, title, dur, playing } from './audio.js';
-import { togglePlay, pause, seekTo, skip } from './controls.js';
+import { JUMP_END_OFFSET_S, MEDIA_SESSION_THROTTLE_MS } from './config.js';
+import { pause, seekTo, skip, togglePlay } from './controls.js';
+import { currentAudio, currentTitle, duration, isPlaying } from './now-playing.js';
+import { clamp } from '../../shared/math.js';
+import { site } from '../sites.js';
 
 // Media keys + Chrome controls
 
-let msTitle = '';
+const DEFAULT_SEEK_OFFSET_S = 10;
+const ARTWORK_SIZES = '512x512';
+
+let lastTitle = '';
+let lastPositionUpdateAt = 0;
+
 function setMetadata() {
-  const t = title();
-  if (t === msTitle) return;
-  msTitle = t;
-  const art = document.querySelector('meta[property="og:image"]')?.content;
+  const title = currentTitle();
+  if (title === lastTitle) return;
+  lastTitle = title;
+  const artwork = document.querySelector('meta[property="og:image"]')?.content;
   try {
     navigator.mediaSession.metadata = new MediaMetadata({
-      title: t,
+      title,
       artist: site.name || '',
       album: document.title,
-      artwork: art ? [{ src: art, sizes: '512x512' }] : []
+      artwork: artwork ? [{ src: artwork, sizes: ARTWORK_SIZES }] : []
     });
   } catch {}
 }
+
+/** Connects hardware media keys and Chrome's media controls to the player. */
 export function setupMediaSession() {
   if (!('mediaSession' in navigator)) return;
-  const ms = navigator.mediaSession;
+  const session = navigator.mediaSession;
   setMetadata();
-  const h = (n, f) => {
+  const setHandler = (name, handler) => {
     try {
-      ms.setActionHandler(n, f);
+      session.setActionHandler(name, handler);
     } catch {}
   };
-  h('play', () => {
-    if (!playing()) togglePlay();
+  setHandler('play', () => {
+    if (!isPlaying()) togglePlay();
   });
-  h('pause', () => pause());
-  h('seekbackward', e => skip(-(e.seekOffset || 10)));
-  h('seekforward', e => skip(e.seekOffset || 10));
-  h('seekto', e => seekTo(e.seekTime, true));
-  h('previoustrack', () => seekTo(0, true));
-  h('nexttrack', () => seekTo(dur() - 1, true));
+  setHandler('pause', () => pause());
+  setHandler('seekbackward', e => skip(-(e.seekOffset || DEFAULT_SEEK_OFFSET_S)));
+  setHandler('seekforward', e => skip(e.seekOffset || DEFAULT_SEEK_OFFSET_S));
+  setHandler('seekto', e => seekTo(e.seekTime, true));
+  setHandler('previoustrack', () => seekTo(0, true));
+  setHandler('nexttrack', () => seekTo(duration() - JUMP_END_OFFSET_S, true));
 }
-let msLast = 0;
-export function updateMediaSession(c, d, r, isPlay) {
-  if (!('mediaSession' in navigator) || !audio() || Date.now() - msLast < 1000) return;
-  msLast = Date.now();
+
+/** Publishes title, play state and position to the browser, at most once per second. */
+export function updateMediaSession({ time, total, rate, playing }) {
+  if (
+    !('mediaSession' in navigator) ||
+    !currentAudio() ||
+    Date.now() - lastPositionUpdateAt < MEDIA_SESSION_THROTTLE_MS
+  )
+    return;
+  lastPositionUpdateAt = Date.now();
   setMetadata(); // On sites that switch shows without reloading the page
   try {
-    navigator.mediaSession.playbackState = isPlay ? 'playing' : 'paused';
-    if (isFinite(d) && d > 0)
-      navigator.mediaSession.setPositionState({ duration: d, position: clamp(c, 0, d), playbackRate: r });
+    navigator.mediaSession.playbackState = playing ? 'playing' : 'paused';
+    if (isFinite(total) && total > 0)
+      navigator.mediaSession.setPositionState({ duration: total, position: clamp(time, 0, total), playbackRate: rate });
   } catch {}
 }

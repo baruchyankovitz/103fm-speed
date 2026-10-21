@@ -1,49 +1,57 @@
-import { toast } from './util.js';
-import { title } from './audio.js';
-import { miniHTML } from './templates.js';
-import { wire } from './mount.js';
-import { update } from './update.js';
+import { PIP_FONT_URL, PIP_WINDOW_SIZE } from './config.js';
+import { createRtlBox } from './dom.js';
 import { onKey } from './keyboard.js';
-import { adopt } from './styles.js';
-import { state, roots } from './state.js';
+import { currentTitle } from './now-playing.js';
+import { requestRender } from './render-scheduler.js';
+import { unregisterRoot } from './roots.js';
+import { adoptStyles } from './styles.js';
+import { miniHTML } from './templates.js';
+import { wireRoot } from './wire.js';
+import { emitToast } from '../events.js';
 
 // Floating player (Document Picture-in-Picture)
+let pipWindow = null;
 
+/** True while the floating window is open. */
+export const isPipOpen = () => !!pipWindow;
+
+function buildPipDocument(doc, win) {
+  doc.documentElement.dir = 'rtl';
+  doc.title = currentTitle();
+  const fonts = doc.createElement('link');
+  fonts.rel = 'stylesheet';
+  fonts.href = PIP_FONT_URL;
+  doc.head.appendChild(fonts);
+  adoptStyles(doc, win);
+  doc.body.className = 'fm-pip-body';
+  const box = createRtlBox('fm-miniplayer fm-in-pip', miniHTML);
+  doc.body.appendChild(box);
+  wireRoot(box);
+  return box;
+}
+
+/** Opens the floating player window (or focuses it when already open). */
 export async function openPip() {
-  if (state.pipWin) {
-    state.pipWin.focus();
+  if (pipWindow) {
+    pipWindow.focus();
     return;
   }
   if (!('documentPictureInPicture' in window)) {
-    toast('הדפדפן לא תומך בנגן צף');
+    emitToast('הדפדפן לא תומך בנגן צף');
     return;
   }
   try {
-    state.pipWin = await documentPictureInPicture.requestWindow({ width: 420, height: 132 });
+    pipWindow = await documentPictureInPicture.requestWindow(PIP_WINDOW_SIZE);
   } catch {
-    toast('לא ניתן לפתוח נגן צף');
+    emitToast('לא ניתן לפתוח נגן צף');
     return;
   }
-  const d = state.pipWin.document;
-  d.documentElement.dir = 'rtl';
-  d.title = title();
-  const link = d.createElement('link');
-  link.rel = 'stylesheet';
-  link.href = 'https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;800&display=swap';
-  d.head.appendChild(link);
-  adopt(d, state.pipWin);
-  d.body.className = 'fm-pip-body';
-  const box = d.createElement('div');
-  box.className = 'fm-miniplayer fm-in-pip';
-  box.dir = 'rtl';
-  box.innerHTML = miniHTML;
-  d.body.appendChild(box);
-  wire(box);
-  d.addEventListener('keydown', onKey, true);
-  state.pipWin.addEventListener('pagehide', () => {
-    roots.delete(box);
-    state.pipWin = null;
-    update();
+  const box = buildPipDocument(pipWindow.document, pipWindow);
+  pipWindow.document.addEventListener('keydown', onKey, true);
+  pipWindow.addEventListener('pagehide', () => {
+    unregisterRoot(box);
+    pipWindow = null;
+    requestRender();
   });
-  update();
+  requestRender();
 }

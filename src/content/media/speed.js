@@ -1,53 +1,55 @@
-import { AD_BOX, isAd } from './ads.js';
-import { hook } from './positions.js';
+import { isAd } from './ads.js';
+import { AD_CONTAINER_SELECTOR, ENFORCE_INTERVAL_MS, RATE_TOLERANCE } from './config.js';
+import { rememberPosition } from './positions.js';
+import { track, trackedElements } from './registry.js';
+import { DEFAULT_SPEED, SPEED_ATTRIBUTE } from '../../shared/constants.js';
 
-export const rate = () => parseFloat(document.documentElement.getAttribute('data-fm-speed')) || 1.5;
-export const known = new Set();
-let busy = false;
+let applying = false;
 
-function apply(el) {
+/** The speed chosen by the user (published by the bridge on <html>). */
+export const currentRate = () => parseFloat(document.documentElement.getAttribute(SPEED_ATTRIBUTE)) || DEFAULT_SPEED;
+
+function enforceSpeed(element) {
   // Track every audio element, and video only when it is an ad (so the player can pause it)
-  if (!(el instanceof HTMLAudioElement) && !(el instanceof HTMLMediaElement && isAd(el))) return;
-  if (!known.has(el)) {
-    known.add(el);
-    hook(el);
-  }
-  if (isAd(el)) return; // Do not speed up ads
-  const r = rate();
-  if (Math.abs(el.playbackRate - r) > 0.01) {
-    busy = true;
-    el.defaultPlaybackRate = r;
-    el.playbackRate = r;
-    el.preservesPitch = true;
-    busy = false;
+  if (!(element instanceof HTMLAudioElement) && !(element instanceof HTMLMediaElement && isAd(element))) return;
+  if (track(element)) rememberPosition(element);
+  if (isAd(element)) return; // Do not speed up ads
+  const rate = currentRate();
+  if (Math.abs(element.playbackRate - rate) > RATE_TOLERANCE) {
+    applying = true;
+    element.defaultPlaybackRate = rate;
+    element.playbackRate = rate;
+    element.preservesPitch = true;
+    applying = false;
   }
 }
-const applyAll = () => {
-  document.querySelectorAll(`audio,:is(${AD_BOX}) video`).forEach(apply);
-  known.forEach(apply);
+
+const enforceAll = () => {
+  document.querySelectorAll(`audio,:is(${AD_CONTAINER_SELECTOR}) video`).forEach(enforceSpeed);
+  trackedElements().forEach(enforceSpeed);
 };
 
+/** Keeps the chosen speed applied whenever the site resets it. */
 export function initSpeed() {
-  // Enforce the speed every time the player resets it
-  ['play', 'playing', 'loadedmetadata', 'ratechange'].forEach(ev =>
+  ['play', 'playing', 'loadedmetadata', 'ratechange'].forEach(eventName =>
     document.addEventListener(
-      ev,
-      e => {
-        if (!busy) apply(e.target);
+      eventName,
+      event => {
+        if (!applying) enforceSpeed(event.target);
       },
       true
     )
   );
 
-  const origPlay = HTMLMediaElement.prototype.play;
-  HTMLMediaElement.prototype.play = function (...a) {
-    apply(this);
-    return origPlay.apply(this, a);
+  const originalPlay = HTMLMediaElement.prototype.play;
+  HTMLMediaElement.prototype.play = function (...args) {
+    enforceSpeed(this);
+    return originalPlay.apply(this, args);
   };
 
-  new MutationObserver(applyAll).observe(document.documentElement, {
+  new MutationObserver(enforceAll).observe(document.documentElement, {
     attributes: true,
-    attributeFilter: ['data-fm-speed']
+    attributeFilter: [SPEED_ATTRIBUTE]
   });
-  setInterval(applyAll, 1500);
+  setInterval(enforceAll, ENFORCE_INTERVAL_MS);
 }

@@ -1,14 +1,17 @@
+import { DEFAULT_SPEED, EVENTS, SPEED_ATTRIBUTE, STORAGE_KEY } from '../shared/constants.js';
+import { isValidSpeed } from '../shared/speed.js';
+
 // Isolated world: connects the saved settings (chrome.storage) to the player running in the page world
 const root = document.documentElement;
-const apply = r => root.setAttribute('data-fm-speed', r);
+const publishSpeed = rate => root.setAttribute(SPEED_ATTRIBUTE, rate);
 
-chrome.storage.sync.get({ rate: 1.5 }, d => apply(d.rate));
-chrome.storage.onChanged.addListener(c => {
-  if (c.rate) apply(c.rate.newValue);
+chrome.storage.sync.get({ [STORAGE_KEY]: DEFAULT_SPEED }, saved => publishSpeed(saved[STORAGE_KEY]));
+chrome.storage.onChanged.addListener(changes => {
+  if (changes[STORAGE_KEY]) publishSpeed(changes[STORAGE_KEY].newValue);
 });
 
 // The player asks to save a new speed
-document.addEventListener('fm-set-speed', e => {
-  const r = parseFloat(e.detail);
-  if (r >= 0.5 && r <= 3) chrome.storage.sync.set({ rate: r });
+document.addEventListener(EVENTS.setSpeed, event => {
+  const rate = parseFloat(event.detail);
+  if (isValidSpeed(rate)) chrome.storage.sync.set({ [STORAGE_KEY]: rate });
 });
