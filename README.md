@@ -20,6 +20,8 @@ Live broadcasts keep the site's own player. Sites are configured in the `SITES` 
 - **Remaining time** recalculated for the current speed, plus the clock time the show will end
 - **Waveform seek bar** with drag and hover preview; skip 10s / 30s, jump to start or end
 - **Resume where you stopped**: the position of the last 50 episodes is saved locally
+- **Listening history**: the popup shows the five most recent shows, progress percentage, and a link to reopen a show and resume
+- **Time saved**: a conservative estimate of time saved at speeds above 1x, calculated on-device and shown in the popup
 - **Sleep timer**: 10–60 minutes or end of show, with a 10-second fade-out
 - **Share a clip**: links of the form `#fm=start-end` start and stop at the exact clip for anyone with the extension (WhatsApp, Facebook, X, copy link)
 - **Floating player** (Document Picture-in-Picture) and a mini player that appears when you scroll away
@@ -49,7 +51,7 @@ The 103FM player creates its `<audio>` element with `new Audio()` and never atta
 
 Names shared by all parts (storage key, speed limits, event names) live in `src/shared/constants.js`. Pure helpers (time formatting and parsing, clip links, position pruning, sleep fade) have no DOM access and are covered by `test/`. The player modules never import each other in a cycle: low-level code asks for a re-render or runs a UI action through the tiny `render-scheduler.js` and `action-registry.js` modules, which `initPlayer()` fills in.
 
-No data leaves the browser: settings live in `chrome.storage.sync`, playback positions in the site's `localStorage`.
+Listening history and saved-time totals stay in `chrome.storage.local`; playback positions remain in the site's `localStorage`. The playback-speed preference uses `chrome.storage.sync`, which Chrome may sync through the user's Google account. Audio is not uploaded by the extension.
 
 ## Project layout
 

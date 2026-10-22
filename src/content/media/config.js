@@ -12,6 +12,8 @@ export const ENFORCE_INTERVAL_MS = 1500;
 export const RATE_TOLERANCE = 0.01;
 
 export const POSITIONS_STORAGE_KEY = 'fm-speed-positions';
+export const HISTORY_STORAGE_KEY = 'fm-speed-history';
+export const SAVED_TIME_STORAGE_KEY = 'fm-speed-saved-seconds';
 export const POSITION_SAVE_INTERVAL_MS = 5000;
 export const MAX_STORED_POSITIONS = 50;
 /** A saved position is resumed only when it is later than this many seconds... */

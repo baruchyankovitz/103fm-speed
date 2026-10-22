@@ -5,7 +5,7 @@
     <style>
       body {
         font-family: Arial, sans-serif;
-        width: 200px;
+        width: 300px;
         margin: 12px;
         text-align: center;
       }
@@ -38,6 +38,50 @@
         text-decoration: none;
         font-weight: bold;
       }
+      .stats {
+        margin: 14px 0 6px;
+        padding: 9px;
+        border-radius: 8px;
+        background: #f7f7f7;
+        font-size: 13px;
+      }
+      .history-title {
+        margin: 14px 0 7px;
+        font-size: 14px;
+        text-align: right;
+      }
+      .history-list {
+        display: grid;
+        gap: 7px;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+        text-align: right;
+      }
+      .history-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 8px;
+        border: 1px solid #eee;
+        border-radius: 7px;
+      }
+      .history-item strong,
+      .history-item small {
+        display: block;
+        overflow-wrap: anywhere;
+      }
+      .history-item strong { font-size: 12px; }
+      .history-item small { margin-top: 4px; color: #777; font-size: 11px; }
+      .history-item a {
+        flex: 0 0 auto;
+        color: #d32f2f;
+        font-size: 12px;
+        font-weight: bold;
+        text-decoration: none;
+      }
+      .empty { margin: 8px 0; color: #777; font-size: 12px; }
       button.on {
         background: #d32f2f;
         color: #fff;
@@ -48,6 +92,9 @@
   <body>
     <h3>מהירות השמעה</h3>
     <div class="grid" id="g"></div>
+    <div class="stats" id="saved-time">זמן שנחסך בהאצה: 0 דקות</div>
+    <h4 class="history-title">האזנות אחרונות</h4>
+    <ul class="history-list" id="history"></ul>
     <p style="font-size: 11px; color: #666; margin: 10px 0 0; line-height: 1.6">
       Shift+&gt; / Shift+&lt; — מהירות<br />← / → — דילוג 10 שניות (Shift: 30)<br />רווח — השמעה/עצירה<br />P — נגן צף ·
       ? — כל הקיצורים

@@ -6,12 +6,15 @@ export const DEFAULT_SPEED = 1.5;
 
 /** chrome.storage.sync key holding the chosen speed. */
 export const STORAGE_KEY = 'rate';
+/** Local-only playback history and saved-time total shared with the popup. */
+export const LOCAL_STATS_KEY = 'radioSpeedLocalStats';
 /** Attribute on <html> that carries the speed from the bridge to the page world. */
 export const SPEED_ATTRIBUTE = 'data-fm-speed';
 
 /** DOM events used between the page world, the isolated world and iframes. */
 export const EVENTS = {
   setSpeed: 'fm-set-speed',
+  historyUpdate: 'fm-history-update',
   toast: 'fm-toast',
   contentReady: 'fm-content-ready'
 };
